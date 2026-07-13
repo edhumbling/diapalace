@@ -1,0 +1,418 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Search, ShoppingCart, Plus, Minus, Trash2, UserPlus, CreditCard, ChevronRight } from "lucide-react";
+import { Product, ProductVariation, Customer, db } from "../lib/db";
+
+interface POSModuleProps {
+  products: Product[];
+  categories: string[];
+  customers: Customer[];
+  onCheckout: (cartItems: any[], linkedCustomer: Customer | null) => void;
+}
+
+interface CartItem {
+  id: string; // Unique for cart (productId + variation index)
+  product: Product;
+  variationIndex?: number;
+  variation?: ProductVariation;
+  quantity: number;
+}
+
+export default function POSModule({
+  products,
+  categories,
+  customers,
+  onCheckout
+}: POSModuleProps) {
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  // Variation Picker state
+  const [activeVariationProduct, setActiveVariationProduct] = useState<Product | null>(null);
+
+  // Link selected customer details when customer ID changes
+  useEffect(() => {
+    if (selectedCustomerId) {
+      const found = customers.find((c) => c.id === selectedCustomerId);
+      setSelectedCustomer(found || null);
+    } else {
+      setSelectedCustomer(null);
+    }
+  }, [selectedCustomerId, customers]);
+
+  // Filtered products list
+  const filteredProducts = products.filter((prod) => {
+    const matchesCategory = selectedCategory === "All" || prod.category === selectedCategory;
+    const matchesSearch = prod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          prod.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // Calculate totals
+  const subtotal = cart.reduce((acc, item) => {
+    const price = item.variation ? item.variation.price : item.product.price;
+    return acc + price * item.quantity;
+  }, 0);
+  const discount = 0; // Edith can manually void or apply a discount, or default to 0
+  const total = subtotal - discount;
+
+  // Add product to cart helper
+  const handleProductClick = (product: Product) => {
+    // If product has variations, open variation picker
+    if (product.variations && product.variations.length > 0) {
+      setActiveVariationProduct(product);
+    } else {
+      // Add standard product
+      addToCart(product);
+    }
+  };
+
+  const addToCart = (product: Product, variationIndex?: number) => {
+    const variation = variationIndex !== undefined ? product.variations[variationIndex] : undefined;
+    const cartItemId = variationIndex !== undefined ? `${product.id}-${variationIndex}` : product.id;
+
+    // Check stock limit
+    const maxStock = variation ? variation.stock : product.stock;
+
+    setCart((prevCart) => {
+      const existing = prevCart.find((item) => item.id === cartItemId);
+      if (existing) {
+        if (existing.quantity >= maxStock) {
+          alert(`Cannot add more. Only ${maxStock} items left in stock.`);
+          return prevCart;
+        }
+        return prevCart.map((item) =>
+          item.id === cartItemId ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prevCart, { id: cartItemId, product, variationIndex, variation, quantity: 1 }];
+    });
+
+    setActiveVariationProduct(null);
+  };
+
+  // Adjust cart item quantity
+  const updateQuantity = (itemId: string, delta: number) => {
+    setCart((prevCart) => {
+      return prevCart
+        .map((item) => {
+          if (item.id === itemId) {
+            const newQty = item.quantity + delta;
+            const maxStock = item.variation ? item.variation.stock : item.product.stock;
+
+            if (newQty <= 0) return null;
+            if (newQty > maxStock) {
+              alert(`Cannot exceed available stock of ${maxStock}.`);
+              return item;
+            }
+            return { ...item, quantity: newQty };
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[];
+    });
+  };
+
+  // Remove single item from cart
+  const removeCartItem = (itemId: string) => {
+    setCart((prevCart) => prevCart.filter((item) => item.id !== itemId));
+  };
+
+  // Clear all items in cart
+  const clearCart = () => {
+    if (confirm("Are you sure you want to clear the shopping cart?")) {
+      setCart([]);
+    }
+  };
+
+  const handleCheckoutSubmit = () => {
+    if (cart.length === 0) {
+      alert("Your cart is empty. Please add products to check out.");
+      return;
+    }
+    onCheckout(cart, selectedCustomer);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col lg:flex-row gap-6 relative">
+      
+      {/* Left Pane: Catalog & Search (lg:col-span-8) */}
+      <div className="flex-1 flex flex-col gap-6">
+        
+        {/* Top Controls: Search Bar and Category Tabs */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-zinc-900/40 p-4 border border-zinc-900 rounded-2xl">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Search pomades, skincare, clothing..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-400/50 transition-colors"
+            />
+          </div>
+          
+          {/* Scrollable categories pills */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar max-w-full">
+            {["All", ...categories].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 cursor-pointer ${
+                  selectedCategory === cat
+                    ? "bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-sm"
+                    : "bg-zinc-950/40 border-zinc-900 text-zinc-400 hover:text-zinc-200 hover:border-zinc-800"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Product Catalog Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto max-h-[calc(100vh-270px)] pr-2">
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((prod) => {
+              const outOfStock = prod.stock <= 0;
+              return (
+                <div
+                  key={prod.id}
+                  onClick={() => !outOfStock && handleProductClick(prod)}
+                  className={`glass-panel p-4 rounded-2xl flex flex-col justify-between border cursor-pointer hover:border-rose-400/40 transition-all duration-300 group ${
+                    outOfStock ? "opacity-50 cursor-not-allowed border-zinc-900" : "border-zinc-900 bg-zinc-900/10"
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    {/* Visual box placeholder with Category details */}
+                    <div className="w-full aspect-video rounded-xl bg-zinc-950/80 border border-zinc-900 flex items-center justify-center relative overflow-hidden group-hover:bg-zinc-900/60 transition-colors">
+                      <span className="text-[10px] text-zinc-600 uppercase font-mono tracking-widest">
+                        {prod.category}
+                      </span>
+                      {prod.variations && prod.variations.length > 0 && (
+                        <div className="absolute top-2 right-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                          Variations
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-xs font-bold text-zinc-200 line-clamp-1 group-hover:text-rose-300 transition-colors">
+                        {prod.name}
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 line-clamp-2 leading-relaxed">
+                        {prod.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-900/60">
+                    <span className="text-sm font-black text-rose-300 font-mono">
+                      GH₵ {prod.price.toFixed(2)}
+                    </span>
+                    <span className={`text-[9px] font-bold uppercase ${prod.stock < 10 ? "text-amber-400" : "text-zinc-500"}`}>
+                      {outOfStock ? "Out of Stock" : `${prod.stock} left`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="col-span-full py-20 text-center text-zinc-500 text-sm glass-panel rounded-2xl">
+              No products found in category "{selectedCategory}"
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right Pane: Shopping Cart (lg:col-span-4) */}
+      <div className="w-full lg:w-96 flex flex-col border border-zinc-900 bg-zinc-950/80 rounded-2xl overflow-hidden flex-shrink-0">
+        
+        {/* Cart Header */}
+        <div className="p-4 border-b border-zinc-900 bg-zinc-950 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4 text-rose-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-200">
+              Shopping Cart ({cart.reduce((a, b) => a + b.quantity, 0)})
+            </h3>
+          </div>
+          {cart.length > 0 && (
+            <button
+              onClick={clearCart}
+              className="text-zinc-500 hover:text-rose-400 p-1.5 rounded-lg transition-colors cursor-pointer"
+              title="Clear all"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Client/Customer Selection */}
+        <div className="p-4 border-b border-zinc-900 bg-zinc-950/20 flex flex-col gap-2">
+          <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+            Link Customer Profile
+          </label>
+          <select
+            value={selectedCustomerId}
+            onChange={(e) => setSelectedCustomerId(e.target.value)}
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-rose-400/50"
+          >
+            <option value="">Walk-in Customer</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.phone})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Cart Item List */}
+        <div className="flex-1 overflow-y-auto max-h-[400px] p-4 flex flex-col gap-3">
+          {cart.length > 0 ? (
+            cart.map((item) => {
+              const itemPrice = item.variation ? item.variation.price : item.product.price;
+              const displayVariation = item.variation
+                ? `${item.variation.size || ""}${item.variation.size && item.variation.color ? " / " : ""}${item.variation.color || ""}`
+                : "";
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/20 border border-zinc-900/60"
+                >
+                  <div className="flex-1 min-w-0 pr-3">
+                    <h4 className="text-xs font-bold text-zinc-200 truncate">{item.product.name}</h4>
+                    {displayVariation && (
+                      <span className="text-[9px] text-rose-300 font-semibold uppercase">{displayVariation}</span>
+                    )}
+                    <div className="text-[10px] text-zinc-500 font-mono mt-1">
+                      GH₵ {itemPrice.toFixed(2)} ea
+                    </div>
+                  </div>
+
+                  {/* Quantity adjustments */}
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={() => updateQuantity(item.id, -1)}
+                      className="w-6 h-6 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-xs font-mono font-bold text-zinc-200 w-4 text-center">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateQuantity(item.id, 1)}
+                      className="w-6 h-6 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => removeCartItem(item.id)}
+                      className="text-zinc-600 hover:text-rose-400 p-1 rounded-lg transition-colors cursor-pointer ml-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center text-zinc-600 py-16">
+              <ShoppingCart className="w-8 h-8 text-zinc-800 mb-2" />
+              <p className="text-xs font-medium">Cart is currently empty</p>
+            </div>
+          )}
+        </div>
+
+        {/* Cart Totals Summary & Checkout Action */}
+        <div className="p-4 border-t border-zinc-900 bg-zinc-950 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5 text-xs">
+            <div className="flex items-center justify-between text-zinc-500 font-medium">
+              <span>Subtotal</span>
+              <span className="font-mono">GH₵ {subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-zinc-500 font-medium">
+              <span>Discount</span>
+              <span className="font-mono">GH₵ {discount.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-zinc-200 font-bold border-t border-zinc-900/60 pt-2 text-sm mt-1">
+              <span>Total Bill</span>
+              <span className="font-mono text-rose-300">GH₵ {total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleCheckoutSubmit}
+            disabled={cart.length === 0}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-400 to-amber-300 hover:opacity-90 active:scale-[0.98] text-zinc-950 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-rose-500/10 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:opacity-30"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Proceed to Payment</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Variation Picker Modal / Overlay */}
+      {activeVariationProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md rounded-2xl border border-zinc-800 p-6 flex flex-col gap-6 shadow-2xl animate-scale-up">
+            <div className="border-b border-zinc-900 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-wide">
+                  Select Variation
+                </h3>
+                <p className="text-[10px] text-zinc-500 mt-0.5">{activeVariationProduct.name}</p>
+              </div>
+              <button
+                onClick={() => setActiveVariationProduct(null)}
+                className="text-zinc-400 hover:text-zinc-200 text-xs font-bold"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+                Available Variations
+              </span>
+              <div className="flex flex-col gap-2.5 max-h-60 overflow-y-auto">
+                {activeVariationProduct.variations.map((vari, idx) => {
+                  const outOfStock = vari.stock <= 0;
+                  const displaySpecs = `${vari.size || ""}${vari.size && vari.color ? " / " : ""}${vari.color || ""}`;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => !outOfStock && addToCart(activeVariationProduct, idx)}
+                      disabled={outOfStock}
+                      className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${
+                        outOfStock
+                          ? "opacity-40 border-zinc-900 bg-zinc-950 cursor-not-allowed"
+                          : "border-zinc-800 bg-zinc-900/20 hover:border-rose-400/40 hover:bg-zinc-900/60 cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold text-zinc-200 uppercase">{displaySpecs}</span>
+                        <span className="text-[10px] text-zinc-500">
+                          {outOfStock ? "Out of Stock" : `${vari.stock} in stock`}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-rose-300 font-mono">
+                        GH₵ {vari.price.toFixed(2)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
