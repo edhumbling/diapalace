@@ -102,9 +102,8 @@ export default function Sidebar({
           </button>
         </div>
       </aside>
-
       {/* Mobile Bottom Navigation (visible on mobile only) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-md border-t border-zinc-900 flex items-center justify-around py-2 px-4 shadow-2xl">
+      <nav className="md:hidden fixed bottom-4 left-4 right-4 z-40 bg-zinc-950/85 backdrop-blur-xl border border-zinc-900/80 rounded-2xl flex items-center justify-around py-2.5 px-2 shadow-2xl shadow-black/80">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -112,29 +111,32 @@ export default function Sidebar({
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className="flex flex-col items-center gap-1.5 py-1 px-3 rounded-lg cursor-pointer"
+              className="flex flex-col items-center gap-1 py-1 px-3.5 rounded-xl cursor-pointer relative transition-all active:scale-[0.93]"
             >
               <Icon
-                className={`w-5 h-5 ${
+                className={`w-4.5 h-4.5 ${
                   isActive ? "text-rose-400 scale-105" : "text-zinc-500 hover:text-zinc-300"
                 } transition-all`}
               />
               <span
-                className={`text-[9px] font-bold tracking-wider uppercase ${
+                className={`text-[8px] font-extrabold tracking-widest uppercase ${
                   isActive ? "text-rose-400" : "text-zinc-500"
                 }`}
               >
                 {item.id === "pos" ? "POS" : item.id === "inventory" ? "Catalog" : item.id === "customers" ? "Clients" : "Reports"}
               </span>
+              {isActive && (
+                <span className="absolute bottom-[-1px] w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
+              )}
             </button>
           );
         })}
         <button
           onClick={onLogout}
-          className="flex flex-col items-center gap-1.5 py-1 px-3 rounded-lg cursor-pointer"
+          className="flex flex-col items-center gap-1 py-1 px-3.5 rounded-xl cursor-pointer transition-all active:scale-[0.93]"
         >
-          <LogOut className="w-5 h-5 text-zinc-600 hover:text-rose-400" />
-          <span className="text-[9px] font-bold tracking-wider text-zinc-600 uppercase">Lock</span>
+          <LogOut className="w-4.5 h-4.5 text-zinc-600 hover:text-rose-400" />
+          <span className="text-[8px] font-extrabold tracking-widest text-zinc-600 uppercase">Lock</span>
         </button>
       </nav>
     </>

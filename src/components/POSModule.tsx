@@ -34,6 +34,9 @@ export default function POSModule({
   // Variation Picker state
   const [activeVariationProduct, setActiveVariationProduct] = useState<Product | null>(null);
 
+  // Mobile Catalog vs Cart View Toggle
+  const [mobileTab, setMobileTab] = useState<"catalog" | "cart">("catalog");
+
   // Link selected customer details when customer ID changes
   useEffect(() => {
     if (selectedCustomerId) {
@@ -138,10 +141,43 @@ export default function POSModule({
   };
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row gap-6 relative">
+    <div className="flex-1 flex flex-col gap-4 relative">
       
-      {/* Left Pane: Catalog & Search (lg:col-span-8) */}
-      <div className="flex-1 flex flex-col gap-6">
+      {/* Mobile View Switcher (lg:hidden) */}
+      <div className="flex lg:hidden bg-zinc-900/40 p-1 rounded-2xl border border-zinc-900 w-full mb-1">
+        <button
+          type="button"
+          onClick={() => setMobileTab("catalog")}
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+            mobileTab === "catalog"
+              ? "bg-rose-500/10 border border-rose-500/20 text-rose-300 shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          Catalog
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("cart")}
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-xl transition-all relative cursor-pointer ${
+            mobileTab === "cart"
+              ? "bg-rose-500/10 border border-rose-500/20 text-rose-300 shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          <span>Cart</span>
+          {cart.length > 0 && (
+            <span className="absolute top-1/2 -translate-y-1/2 right-4 bg-rose-500 text-white text-[9px] font-black rounded-full w-4.5 h-4.5 flex items-center justify-center animate-pulse shadow-md shadow-rose-500/30">
+              {cart.reduce((a, b) => a + b.quantity, 0)}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row gap-6">
+        
+        {/* Left Pane: Catalog & Search */}
+        <div className={`flex-1 flex flex-col gap-6 ${mobileTab !== "catalog" ? "hidden lg:flex" : "flex"}`}>
         
         {/* Top Controls: Search Bar and Category Tabs */}
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-zinc-900/40 p-4 border border-zinc-900 rounded-2xl">
@@ -229,8 +265,8 @@ export default function POSModule({
         </div>
       </div>
 
-      {/* Right Pane: Shopping Cart (lg:col-span-4) */}
-      <div className="w-full lg:w-96 flex flex-col border border-zinc-900 bg-zinc-950/80 rounded-2xl overflow-hidden flex-shrink-0">
+      {/* Right Pane: Shopping Cart */}
+      <div className={`w-full lg:w-96 flex flex-col border border-zinc-900 bg-zinc-950/80 rounded-2xl overflow-hidden flex-shrink-0 ${mobileTab !== "cart" ? "hidden lg:flex" : "flex"}`}>
         
         {/* Cart Header */}
         <div className="p-4 border-b border-zinc-900 bg-zinc-950 flex items-center justify-between">
@@ -356,6 +392,8 @@ export default function POSModule({
           </button>
         </div>
       </div>
+
+      </div> {/* Closes flex-1 flex flex-col lg:flex-row gap-6 wrapper */}
 
       {/* Variation Picker Modal / Overlay */}
       {activeVariationProduct && (

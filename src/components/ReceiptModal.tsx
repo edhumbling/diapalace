@@ -168,7 +168,7 @@ Come back soon.
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="glass-panel w-full max-w-2xl rounded-3xl border border-zinc-800 p-6 flex flex-col md:flex-row gap-6 shadow-2xl animate-scale-up">
+      <div className="glass-panel w-full max-w-2xl rounded-3xl border border-zinc-800 p-6 flex flex-col md:flex-row gap-6 shadow-2xl animate-scale-up max-h-[90vh] overflow-y-auto">
         
         {/* Left Side: Receipt Preview (White Thermal Look) */}
         <div className="flex-1 bg-white text-zinc-950 font-mono text-[10px] p-5 rounded-2xl shadow-inner max-h-[420px] overflow-y-auto border border-zinc-200">

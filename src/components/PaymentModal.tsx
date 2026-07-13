@@ -54,7 +54,7 @@ export default function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="glass-panel w-full max-w-lg rounded-3xl border border-zinc-800 p-6 flex flex-col gap-6 shadow-2xl animate-scale-up">
+      <div className="glass-panel w-full max-w-lg rounded-3xl border border-zinc-800 p-6 flex flex-col gap-6 shadow-2xl animate-scale-up max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
         <div className="border-b border-zinc-900 pb-4 flex items-center justify-between">
