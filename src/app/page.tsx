@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 // Import Phosphor Icons
 import {
   Sparkle as PhSparkles,
@@ -503,9 +504,14 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <LuLayout className="w-5 h-5 text-white" />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="DiaPalace Logo"
+            width={38}
+            height={38}
+            className="object-contain"
+            priority
+          />
           <div>
             <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-zinc-50 via-zinc-100 to-zinc-400">
               DiaPalace <span className="text-sm font-semibold bg-clip-text text-transparent bg-gradient-to-r from-violet-400 to-cyan-400">Icon Studio</span>
