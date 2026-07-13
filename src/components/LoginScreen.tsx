@@ -43,7 +43,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       <div className="w-full max-w-md relative z-10">
         
         {/* Soft glass panel */}
-        <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-3xl p-8 shadow-2xl flex flex-col items-center">
+        <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-3xl p-8 shadow-2xl flex flex-col items-center animate-scale-up">
           
           {/* Logo */}
           <div className="relative w-24 h-24 mb-6">

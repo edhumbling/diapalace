@@ -184,7 +184,7 @@ export default function POSModule({
                   key={prod.id}
                   onClick={() => !outOfStock && handleProductClick(prod)}
                   className={`glass-panel p-4 rounded-2xl flex flex-col justify-between border cursor-pointer hover:border-rose-400/40 transition-all duration-300 group ${
-                    outOfStock ? "opacity-50 cursor-not-allowed border-zinc-900" : "border-zinc-900 bg-zinc-900/10"
+                    outOfStock ? "opacity-50 cursor-not-allowed border-zinc-900" : "border-zinc-900 bg-zinc-900/10 interactive-click"
                   }`}
                 >
                   <div className="flex flex-col gap-3">

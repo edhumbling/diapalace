@@ -330,7 +330,9 @@ export default function Home() {
 
         {/* Dynamic module frame container */}
         <main className="flex-1 p-6 md:p-8 flex flex-col overflow-y-auto max-h-[calc(100vh-68px)]">
-          {renderActiveModule()}
+          <div key={activeTab} className="animate-fade-in-blur flex-1 flex flex-col">
+            {renderActiveModule()}
+          </div>
         </main>
       </div>
 

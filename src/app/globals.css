@@ -54,3 +54,69 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* ==========================================
+   Emil Kowalski Design Skill Animations
+   ========================================== */
+
+/* 1. Tactile Button Scale Feedback on Click */
+button,
+.interactive-click {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease !important;
+  will-change: transform;
+}
+button:active:not(:disabled),
+.interactive-click:active:not(:disabled) {
+  transform: scale(0.96) !important;
+}
+
+/* 2. Don't Animate From scale(0) - Modal Entry */
+@keyframes scaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 3. Smooth Page/Tab switches with Blur Crossfade Trick */
+@keyframes fadeInBlur {
+  0% {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-blur {
+  animation: fadeInBlur 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 4. Backdrop Smooth Overlay transition */
+@keyframes backdropFade {
+  0% {
+    background-color: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+  }
+}
+
+.fixed.inset-0.z-50 {
+  animation: backdropFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
