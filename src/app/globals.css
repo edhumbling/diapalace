@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7f9;
+  --background: #f0f1f3;
   --foreground: #111827;
   --surface: #ffffff;
   --surface-subtle: #f9fafb;
@@ -21,6 +21,29 @@
   --success: #047857;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.dark {
+  --background: #0a0a0f;
+  --foreground: #f1f5f9;
+  --surface: #13131a;
+  --surface-subtle: #1a1a24;
+  --surface-muted: #1f1f2b;
+  --border: #1e1e2e;
+  --border-strong: #2a2a3e;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-soft: #64748b;
+  --nav: #0f0f16;
+  --nav-hover: #1a1a26;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-soft: #1e293b;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #10b981;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
@@ -45,6 +68,7 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   overflow-x: hidden;
   letter-spacing: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 ::selection {
@@ -57,21 +81,6 @@ input,
 select,
 textarea {
   font: inherit;
-}
-
-button,
-.interactive-click {
-  transition:
-    background-color 0.14s ease,
-    border-color 0.14s ease,
-    color 0.14s ease,
-    box-shadow 0.14s ease,
-    transform 0.1s ease !important;
-}
-
-button:active:not(:disabled),
-.interactive-click:active:not(:disabled) {
-  transform: translateY(1px) !important;
 }
 
 input,
@@ -93,6 +102,7 @@ select:focus,
 textarea:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
+  outline: none;
 }
 
 table {
@@ -101,7 +111,7 @@ table {
 
 thead tr {
   background: var(--surface-muted) !important;
-  color: #4b5563 !important;
+  color: var(--text-muted) !important;
 }
 
 tbody tr {
@@ -109,7 +119,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: #f8fafc !important;
+  background: var(--surface-subtle) !important;
 }
 
 .app-surface,
@@ -119,8 +129,6 @@ tbody tr:hover {
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .primary-action {
@@ -133,7 +141,7 @@ tbody tr:hover {
 }
 
 .primary-action:disabled {
-  background: #cbd5e1 !important;
+  background: var(--text-soft) !important;
   color: #ffffff !important;
   opacity: 1 !important;
 }
@@ -144,38 +152,22 @@ tbody tr:hover {
   color: #ffffff !important;
 }
 
+/* Navigation side bar */
 .command-rail {
   background: var(--nav);
   color: #f9fafb;
 }
 
-.command-rail .text-white,
-.command-rail .text-zinc-100,
-.command-rail .text-zinc-200,
-.command-rail .text-zinc-300,
-.mobile-command-nav .text-white,
-.mobile-command-nav .text-zinc-100,
-.mobile-command-nav .text-zinc-200,
-.mobile-command-nav .text-zinc-300 {
-  color: #f9fafb !important;
-}
-
 .command-rail .text-zinc-400,
 .command-rail .text-zinc-500,
-.command-rail .text-zinc-600,
-.command-rail .text-zinc-700,
-.mobile-command-nav .text-zinc-400,
-.mobile-command-nav .text-zinc-500,
-.mobile-command-nav .text-zinc-600,
-.mobile-command-nav .text-zinc-700 {
+.mobile-command-nav .text-zinc-500 {
   color: #9ca3af !important;
 }
 
-.command-rail .text-rose-300,
-.command-rail .text-rose-400,
-.mobile-command-nav .text-rose-300,
-.mobile-command-nav .text-rose-400 {
-  color: #60a5fa !important;
+.command-rail .nav-item-active {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #60a5fa;
 }
 
 .command-rail .bg-zinc-950,
@@ -202,7 +194,7 @@ tbody tr:hover {
 }
 
 .product-swatch {
-  background: linear-gradient(180deg, #f9fafb, #eef2f7);
+  background: linear-gradient(180deg, var(--surface-subtle), var(--surface-muted));
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -220,17 +212,17 @@ tbody tr:hover {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f3f4f6;
+  background: var(--surface-muted);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border: 2px solid #f3f4f6;
+  background: var(--border-strong);
+  border: 2px solid var(--surface-muted);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-soft);
 }
 
 @keyframes scaleUp {
@@ -278,6 +270,36 @@ tbody tr:hover {
   animation: slideInRight 0.16s ease-out forwards;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--border) 50%, var(--surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -289,7 +311,7 @@ tbody tr:hover {
   }
 }
 
-/* Compatibility palette for existing Tailwind utility-heavy components. */
+/* Light theme overrides — keeps dark-theme JSX working as light */
 .bg-zinc-950,
 .bg-zinc-950\/80,
 .bg-zinc-950\/60,
@@ -330,7 +352,8 @@ tbody tr:hover {
 .text-rose-300,
 .text-rose-400,
 .text-violet-300,
-.text-cyan-300 {
+.text-cyan-300,
+.text-blue-300 {
   color: var(--primary) !important;
 }
 
@@ -367,13 +390,6 @@ tbody tr:hover {
   color: #ffffff !important;
 }
 
-.bg-blue-600.text-white,
-.bg-blue-600 .text-white,
-.bg-blue-600 span,
-.bg-blue-600 svg {
-  color: #ffffff !important;
-}
-
 .bg-gradient-to-r.from-rose-400.to-amber-300:hover,
 .bg-gradient-to-tr.from-rose-400.to-amber-300:hover {
   background-color: var(--primary-hover) !important;
@@ -396,7 +412,15 @@ tbody tr:hover {
 .border-rose-400\/30,
 .border-violet-500\/20,
 .border-cyan-500\/20 {
-  border-color: #bfdbfe !important;
+  border-color: var(--primary-soft) !important;
+}
+
+.border-violet-500\/60 {
+  border-color: var(--border-strong) !important;
+}
+
+.bg-violet-600\/\[0\.04\] {
+  background-color: var(--primary-soft) !important;
 }
 
 .fixed.inset-0.z-50 {
