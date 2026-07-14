@@ -20,12 +20,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setError(null);
     setIsLoading(true);
 
-    // Simulate small delay for premium feels
+    // Simulate a short authentication delay.
     setTimeout(() => {
-      // The secure passcode specifically for Edith
       if (password === "edith123" || password === "Edith123") {
-        db.setSession("Edith");
-        onLoginSuccess("Edith");
+        db.setSession("Operator");
+        onLoginSuccess("Operator");
       } else {
         setError("Invalid operator passcode. Please try again.");
         setIsLoading(false);
@@ -34,13 +33,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   };
 
   return (
-    <div className="retail-texture min-h-screen w-full overflow-hidden bg-background px-4 py-6 md:p-8">
-      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-48px)] w-full max-w-7xl grid-cols-1 overflow-hidden rounded-[2rem] border border-zinc-900 bg-zinc-950 shadow-2xl md:grid-cols-[1.05fr_0.95fr]">
+    <div className="min-h-screen w-full overflow-hidden bg-background px-4 py-6 md:p-8">
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-48px)] w-full max-w-6xl grid-cols-1 overflow-hidden rounded-2xl border border-zinc-900 bg-zinc-950 shadow-sm md:grid-cols-[1fr_0.92fr]">
         <section className="command-rail relative hidden flex-col justify-between overflow-hidden p-8 md:flex lg:p-10">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rose-400/80 to-transparent" />
           <div>
             <div className="flex items-center gap-3">
-              <div className="relative h-12 w-12 rounded-2xl bg-white p-2">
+              <div className="relative h-11 w-11 rounded-xl bg-white p-2">
                 <Image
                   src="/logo.png"
                   alt="DiaPalace Logo"
@@ -50,32 +48,32 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 />
               </div>
               <div>
-                <h1 className="text-2xl font-black tracking-tight text-white">DiaPalace.com</h1>
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-rose-300">
-                  Secure retail terminal
+                <h1 className="text-xl font-bold tracking-tight text-white">DiaPalace.com</h1>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300">
+                  Business operations platform
                 </p>
               </div>
             </div>
 
-            <div className="mt-20 max-w-xl">
-              <h2 className="text-5xl font-black leading-[0.95] tracking-tight text-white lg:text-6xl">
-                Strong control for every sale Edith makes.
+            <div className="mt-20 max-w-lg">
+              <h2 className="text-4xl font-semibold leading-tight tracking-tight text-white lg:text-5xl">
+                Secure access for retail operations.
               </h2>
-              <p className="mt-6 max-w-md text-sm font-medium leading-7 text-zinc-400">
-                Products, customer profiles, payment records, receipt sharing, and stock movement stay in one focused operator workspace.
+              <p className="mt-5 max-w-md text-sm leading-6 text-zinc-400">
+                Manage catalog, checkout, customer records, receipts, and reporting from a single controlled workspace.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              ["Catalog", "5 seed items"],
-              ["Payments", "Cash + MoMo"],
-              ["Receipts", "Print + share"]
+              ["Catalog", "Stock control"],
+              ["Payments", "Cash and MoMo"],
+              ["Receipts", "Print and share"]
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-zinc-900 bg-zinc-900/40 p-4">
-                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">{label}</div>
-                <div className="mt-2 text-sm font-black text-zinc-200">{value}</div>
+              <div key={label} className="rounded-xl border border-zinc-900 bg-zinc-900/40 p-4">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</div>
+                <div className="mt-2 text-sm font-semibold text-zinc-200">{value}</div>
               </div>
             ))}
           </div>
@@ -99,16 +97,16 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </div>
             </div>
 
-            <div className="premium-panel rounded-[1.75rem] p-6 shadow-xl md:p-8">
+            <div className="premium-panel rounded-2xl p-6 md:p-8">
               <div className="mb-8">
-                <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-300">
+                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-300">
                   <Lock className="h-5 w-5" />
                 </div>
-                <h2 className="text-3xl font-black tracking-tight text-zinc-200">
-                  Unlock terminal
+                <h2 className="text-2xl font-semibold tracking-tight text-zinc-200">
+                  Sign in to workspace
                 </h2>
                 <p className="mt-2 text-sm font-medium leading-6 text-zinc-500">
-                  Authorized operator login for Edith&apos;s DiaPalace retail system.
+                  Authorized access for DiaPalace staff and managers.
                 </p>
               </div>
 
@@ -121,16 +119,16 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 )}
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                    Operator Profile
+                  <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    Workspace
                   </label>
-                  <div className="flex w-full items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950 px-4 py-3 text-sm text-zinc-300">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-400 to-amber-300 text-[11px] font-black text-zinc-950">
-                      ED
+                  <div className="flex w-full items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950 px-4 py-3 text-sm text-zinc-300">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 text-[11px] font-semibold text-zinc-950">
+                      DP
                     </div>
                     <div>
-                      <div className="font-black text-zinc-200">Edith</div>
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Store Operator</div>
+                      <div className="font-semibold text-zinc-200">DiaPalace Operations</div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Company Platform</div>
                     </div>
                   </div>
                 </div>
@@ -146,7 +144,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       placeholder="Enter passcode"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-2xl border border-zinc-800/80 bg-zinc-950 py-3.5 pl-12 pr-12 text-sm font-bold text-zinc-100 placeholder-zinc-600 focus:outline-none"
+                      className="w-full rounded-xl border border-zinc-800/80 bg-zinc-950 py-3 pl-12 pr-12 text-sm font-medium text-zinc-100 placeholder-zinc-600 focus:outline-none"
                       required
                     />
                     <button
@@ -163,28 +161,28 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-400 to-amber-300 py-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-950 shadow-lg shadow-rose-500/10 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="primary-action mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl py-3 text-xs font-semibold uppercase tracking-[0.12em] shadow-none transition-all disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isLoading ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
                   ) : (
                     <>
-                      <span>Unlock Register</span>
+                      <span>Sign In</span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
                 </button>
               </form>
 
-              <div className="mt-6 rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-center">
+              <div className="mt-6 rounded-xl border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-center">
                 <span className="text-[10px] font-bold text-zinc-600">
-                  Demo access: <code className="font-mono text-rose-300/80">edith123</code>
+                  Authorized staff access only
                 </span>
               </div>
             </div>
 
             <p className="mt-5 text-center text-[10px] font-black uppercase tracking-[0.22em] text-zinc-700">
-              diapalace.com secure POS terminal
+              diapalace.com business operations platform
             </p>
           </div>
         </section>

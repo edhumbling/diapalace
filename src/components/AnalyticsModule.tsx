@@ -101,7 +101,7 @@ export default function AnalyticsModule({
             <span className="text-2xl font-black text-violet-300 font-mono">
               GH₵ {weeklyRevenue.toFixed(2)}
             </span>
-            <span className="text-[10px] text-zinc-500 font-medium">Edith&apos;s weekly performance</span>
+            <span className="text-[10px] text-zinc-500 font-medium">Weekly sales performance</span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-300 border border-violet-500/20 group-hover:scale-105 transition-transform duration-300">
             <BarChart3 className="w-5 h-5" />

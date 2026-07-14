@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DiaPalace.com - Online POS System",
-  description: "Secure Point of Sale terminal for Edith's retail store (pomades, skincare, and clothing) at diapalace.com.",
+  title: "DiaPalace.com - Business Operations Platform",
+  description: "Secure point-of-sale, inventory, customer, and reporting workspace for DiaPalace.com.",
 };
 
 export default function RootLayout({

@@ -30,7 +30,7 @@ export default function ReceiptModal({ transaction, onClose }: ReceiptModalProps
 
   const fullReceiptText = `
 DIAPALACE.COM ONLINE POS
-Edith's Retail Store
+Retail Operations
 Accra, Ghana
 ================================
 RECEIPT ID: ${transaction.id}
@@ -89,7 +89,7 @@ Come back soon.
         <body>
           <div class="center">
             <h3>DIAPALACE.COM</h3>
-            <p>Edith's Retail Store<br>Accra, Ghana</p>
+            <p>Retail Operations<br>Accra, Ghana</p>
           </div>
           <p>================================</p>
           <p><strong>RECEIPT ID:</strong> ${transaction.id}</p>
@@ -174,7 +174,7 @@ Come back soon.
         <div className="flex-1 bg-white text-zinc-950 font-mono text-[10px] p-5 rounded-2xl shadow-inner max-h-[420px] overflow-y-auto border border-zinc-200">
           <div className="text-center mb-4">
             <h4 className="text-sm font-bold tracking-wider leading-none">DIAPALACE.COM</h4>
-            <span className="text-[9px] text-zinc-500 font-medium">Edith&apos;s Retail Store</span>
+            <span className="text-[9px] text-zinc-500 font-medium">Retail Operations</span>
             <p className="text-[8px] text-zinc-500">Accra, Ghana</p>
           </div>
 

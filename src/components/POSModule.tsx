@@ -54,7 +54,7 @@ export default function POSModule({
     const price = item.variation ? item.variation.price : item.product.price;
     return acc + price * item.quantity;
   }, 0);
-  const discount = 0; // Edith can manually void or apply a discount, or default to 0
+  const discount = 0;
   const total = subtotal - discount;
 
   // Add product to cart helper
@@ -205,7 +205,7 @@ export default function POSModule({
         </div>
 
         {/* Product Catalog Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4 overflow-y-auto md:max-h-[calc(100vh-330px)] pr-1 md:pr-2 pb-28 md:pb-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto md:max-h-[calc(100vh-330px)] pr-1 md:pr-2 pb-28 md:pb-0">
           {filteredProducts.length > 0 ? (
             filteredProducts.map((prod) => {
               const outOfStock = prod.stock <= 0;
@@ -213,39 +213,41 @@ export default function POSModule({
                 <div
                   key={prod.id}
                   onClick={() => !outOfStock && handleProductClick(prod)}
-                  className={`premium-panel p-3 md:p-4 rounded-2xl flex flex-col justify-between border cursor-pointer hover:border-rose-400/40 transition-all duration-300 group ${
+                  className={`premium-panel p-3 rounded-xl flex flex-col justify-between border cursor-pointer hover:border-rose-400/40 transition-all duration-200 group ${
                     outOfStock ? "opacity-50 cursor-not-allowed border-zinc-900" : "border-zinc-900 bg-zinc-900/10 interactive-click"
                   }`}
                 >
-                  <div className="flex flex-col gap-3">
-                    {/* Visual box placeholder with Category details */}
-                    <div className="product-swatch w-full aspect-[1.45] md:aspect-[4/3] rounded-2xl border border-zinc-900 flex items-center justify-center relative overflow-hidden group-hover:scale-[1.01] transition-transform">
-                      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-white/80 to-transparent" />
-                      <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 text-lg font-black text-rose-300 shadow-sm md:h-16 md:w-16 md:text-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="product-swatch flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-zinc-900">
+                      <span className="text-sm font-semibold text-rose-300">
                         {prod.category.substring(0, 2).toUpperCase()}
                       </span>
-                      {prod.variations && prod.variations.length > 0 && (
-                        <div className="absolute top-2 right-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-full">
-                          Variations
-                        </div>
-                      )}
                     </div>
-
-                    <div className="flex flex-col gap-1">
-                      <h3 className="text-xs md:text-sm font-black text-zinc-200 line-clamp-2 group-hover:text-rose-300 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                          {prod.category}
+                        </span>
+                        {prod.variations && prod.variations.length > 0 && (
+                          <span className="rounded-md border border-zinc-900 bg-zinc-950 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-500">
+                            Variants
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-sm font-semibold text-zinc-200 line-clamp-2 group-hover:text-rose-300 transition-colors">
                         {prod.name}
                       </h3>
-                      <p className="hidden text-[10px] text-zinc-500 line-clamp-2 leading-relaxed sm:block">
+                      <p className="mt-1 text-[11px] text-zinc-500 line-clamp-2 leading-relaxed">
                         {prod.description}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-zinc-900/60">
-                    <span className="text-sm font-black text-rose-300 font-mono whitespace-nowrap">
+                  <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-zinc-900/60">
+                    <span className="text-sm font-semibold text-rose-300 font-mono whitespace-nowrap">
                       GH₵ {prod.price.toFixed(2)}
                     </span>
-                    <span className={`text-[9px] font-black uppercase text-right ${prod.stock < 10 ? "text-amber-400" : "text-zinc-500"}`}>
+                    <span className={`text-[10px] font-semibold uppercase text-right ${prod.stock < 10 ? "text-amber-400" : "text-zinc-500"}`}>
                       {outOfStock ? "Out of Stock" : `${prod.stock} left`}
                     </span>
                   </div>
@@ -380,7 +382,7 @@ export default function POSModule({
           <button
             onClick={handleCheckoutSubmit}
             disabled={cart.length === 0}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-rose-400 to-amber-300 hover:opacity-90 active:scale-[0.98] text-zinc-950 text-xs font-black uppercase tracking-[0.18em] flex items-center justify-center gap-2 transition-all shadow-lg shadow-rose-500/10 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:opacity-30"
+            className="primary-action w-full py-4 rounded-xl text-xs font-semibold uppercase tracking-[0.14em] flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <CreditCard className="w-4 h-4" />
             <span>Proceed to Payment</span>

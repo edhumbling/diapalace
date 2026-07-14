@@ -61,7 +61,7 @@ const DEFAULT_CATEGORIES = ["Pomades", "Skincare", "Clothing"];
 const DEFAULT_PRODUCTS: Product[] = [
   {
     id: "p1",
-    name: "Edith's Organic Shea Butter Pomade",
+    name: "Organic Shea Butter Pomade",
     category: "Pomades",
     description: "Premium pure Ghanaian shea butter infused with lavender oils for hair and body growth.",
     price: 65.00,
@@ -216,7 +216,7 @@ export const db = {
     localStorage.setItem("dp_transactions", JSON.stringify(transactions));
   },
 
-  // Edith's Login Session (Basic)
+  // Operator login session
   getSession(): string | null {
     if (!isClient()) return null;
     return localStorage.getItem("dp_session_operator");

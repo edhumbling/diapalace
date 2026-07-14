@@ -268,7 +268,7 @@ export default function Home() {
   const getModuleTitle = () => {
     switch (activeTab) {
       case "pos":
-        return "Register Sales terminal";
+        return "Sales Register";
       case "inventory":
         return "Product & Stock Inventory";
       case "customers":
@@ -276,7 +276,7 @@ export default function Home() {
       case "analytics":
         return "Sales Analytics & Reports";
       default:
-        return "POS System";
+        return "Operations Workspace";
     }
   };
 
@@ -310,7 +310,6 @@ export default function Home() {
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        operatorName={operator}
         onLogout={handleLogout}
       />
 
@@ -321,16 +320,15 @@ export default function Home() {
         <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md px-4 py-3 md:px-8 md:py-5">
           <div className="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300">
                 <span className="h-2 w-2 rounded-full bg-rose-400" />
-                Live terminal
+                Operations
               </div>
               <h2 className="mt-1 text-[1.65rem] font-black leading-tight tracking-tight text-zinc-200 md:text-3xl">
                 {getModuleTitle()}
               </h2>
               <p className="mt-1 max-w-2xl text-xs font-medium leading-relaxed text-zinc-500 md:text-sm">
-                {moduleDescriptions[activeTab]} Operator:{" "}
-                <span className="font-bold text-zinc-200">{operator}</span>
+                {moduleDescriptions[activeTab]} Secure workspace is active.
               </p>
             </div>
             

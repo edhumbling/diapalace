@@ -13,14 +13,12 @@ import {
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  operatorName: string;
   onLogout: () => void;
 }
 
 export default function Sidebar({
   activeTab,
   setActiveTab,
-  operatorName,
   onLogout
 }: SidebarProps) {
   const menuItems = [
@@ -50,8 +48,8 @@ export default function Sidebar({
             <h1 className="text-lg font-black tracking-tight text-white leading-none">
               DiaPalace.com
             </h1>
-            <span className="text-[10px] text-rose-300 font-black tracking-[0.22em] uppercase">
-              Retail Command POS
+            <span className="text-[10px] text-rose-300 font-semibold tracking-[0.16em] uppercase">
+              Retail Operations
             </span>
           </div>
         </div>
@@ -86,12 +84,12 @@ export default function Sidebar({
         <div className="p-4 border-t border-zinc-900 bg-zinc-950/40 flex flex-col gap-3">
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900/40 p-3">
             <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-400 to-amber-300 flex items-center justify-center text-[11px] font-black text-zinc-950">
-              {operatorName.substring(0, 2).toUpperCase()}
+            <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-[11px] font-semibold text-zinc-950">
+              OP
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-zinc-200 truncate">
-                {operatorName}
+              <p className="text-sm font-semibold text-zinc-200 truncate">
+                Operator
               </p>
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Store Operator</p>
             </div>
@@ -102,7 +100,7 @@ export default function Sidebar({
             className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-zinc-800 hover:border-zinc-700/80 text-zinc-400 hover:text-zinc-200 text-[11px] font-black tracking-[0.16em] uppercase bg-zinc-900/10 cursor-pointer transition-all active:scale-[0.98]"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Lock Terminal</span>
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
