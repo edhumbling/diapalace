@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { BarChart3, Search, Calendar, FileText, Ban, AlertTriangle, TrendingUp, Wallet, ArrowDown } from "lucide-react";
-import { Transaction, db } from "../lib/db";
+import { BarChart3, Search, FileText, Ban, TrendingUp, Wallet } from "lucide-react";
+import { Transaction } from "../lib/db";
 
 interface AnalyticsModuleProps {
   transactions: Transaction[];
@@ -79,7 +79,7 @@ export default function AnalyticsModule({
           <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-xl pointer-events-none" />
           <div className="flex flex-col gap-1.5">
             <span className="text-[9px] uppercase font-bold tracking-widest text-zinc-500">
-              Today's Sales (24h)
+              Today&apos;s Sales (24h)
             </span>
             <span className="text-2xl font-black text-rose-300 font-mono">
               GH₵ {dailyRevenue.toFixed(2)}
@@ -101,7 +101,7 @@ export default function AnalyticsModule({
             <span className="text-2xl font-black text-violet-300 font-mono">
               GH₵ {weeklyRevenue.toFixed(2)}
             </span>
-            <span className="text-[10px] text-zinc-500 font-medium">Edith's weekly performance</span>
+            <span className="text-[10px] text-zinc-500 font-medium">Edith&apos;s weekly performance</span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-300 border border-violet-500/20 group-hover:scale-105 transition-transform duration-300">
             <BarChart3 className="w-5 h-5" />

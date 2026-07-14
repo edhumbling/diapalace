@@ -1,9 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #f4f4f5;
-  --primary: #8b5cf6;
+  --background: #f4f1ea;
+  --foreground: #15130f;
+  --canvas: #fffdf8;
+  --canvas-strong: #ffffff;
+  --ink: #0c0c0c;
+  --ink-soft: #25231f;
+  --muted: #716d64;
+  --line: #e4ded2;
+  --line-strong: #cec5b5;
+  --coral: #ff4f2f;
+  --coral-deep: #da331f;
+  --gold: #c7962e;
+  --green: #207a45;
+  --shadow-soft: 0 18px 50px rgba(37, 30, 18, 0.1);
+  --shadow-hard: 0 18px 45px rgba(12, 12, 12, 0.22);
 }
 
 @theme inline {
@@ -13,72 +25,228 @@
   --font-mono: var(--font-geist-mono);
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ink);
+}
+
 body {
-  background-color: var(--background);
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(255, 79, 47, 0.07), transparent 28%),
+    radial-gradient(circle at 12% 0%, rgba(199, 150, 46, 0.16), transparent 24%),
+    var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   overflow-x: hidden;
+  letter-spacing: 0;
 }
 
-/* Custom glow animation keyframes */
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 0.15;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.25;
-    transform: scale(1.05);
-  }
+::selection {
+  background: rgba(255, 79, 47, 0.18);
+  color: var(--ink);
 }
 
-.animate-pulse-glow {
-  animation: pulseGlow 8s ease-in-out infinite;
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
-/* Glassmorphism utility */
+button,
+.interactive-click {
+  transition:
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease,
+    box-shadow 0.18s ease !important;
+  will-change: transform;
+}
+
+button:active:not(:disabled),
+.interactive-click:active:not(:disabled) {
+  transform: scale(0.97) !important;
+}
+
+input,
+select,
+textarea {
+  color: var(--ink) !important;
+  background: var(--canvas-strong) !important;
+  border-color: var(--line) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9b958a !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--coral) !important;
+  box-shadow: 0 0 0 4px rgba(255, 79, 47, 0.12);
+}
+
+table {
+  background: var(--canvas-strong);
+}
+
+thead tr {
+  background: #f6f1e8 !important;
+  color: #6e685f !important;
+}
+
+tbody tr {
+  background: var(--canvas-strong);
+}
+
+tbody tr:hover {
+  background: #fff7ed !important;
+}
+
+code {
+  font-variant-ligatures: none;
+}
+
+/* New product UI primitives */
+.app-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 251, 244, 0.96)),
+    var(--canvas);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-soft);
+}
+
+.command-rail {
+  background:
+    linear-gradient(180deg, #111111 0%, #070707 100%),
+    var(--ink);
+  color: #fffaf2;
+}
+
+.command-rail .text-white,
+.command-rail .text-zinc-100,
+.command-rail .text-zinc-200,
+.command-rail .text-zinc-300,
+.mobile-command-nav .text-white,
+.mobile-command-nav .text-zinc-100,
+.mobile-command-nav .text-zinc-200,
+.mobile-command-nav .text-zinc-300 {
+  color: #fffaf2 !important;
+}
+
+.command-rail .text-zinc-400,
+.command-rail .text-zinc-500,
+.command-rail .text-zinc-600,
+.command-rail .text-zinc-700,
+.mobile-command-nav .text-zinc-400,
+.mobile-command-nav .text-zinc-500,
+.mobile-command-nav .text-zinc-600,
+.mobile-command-nav .text-zinc-700 {
+  color: #9f9b90 !important;
+}
+
+.command-rail .bg-zinc-950,
+.command-rail .bg-zinc-950\/80,
+.command-rail .bg-zinc-950\/40,
+.command-rail .bg-zinc-900,
+.command-rail .bg-zinc-900\/40,
+.command-rail .bg-zinc-900\/10,
+.mobile-command-nav.bg-zinc-950\/85,
+.mobile-command-nav .bg-zinc-950,
+.mobile-command-nav .bg-zinc-900\/40 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.command-rail .border-zinc-900,
+.command-rail .border-zinc-800,
+.mobile-command-nav.border-zinc-900\/80,
+.mobile-command-nav .border-zinc-900 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.premium-panel,
 .glass-panel {
-  background: rgba(15, 15, 20, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 253, 248, 0.9);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 38px rgba(41, 31, 17, 0.08);
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
+.metric-card {
+  background: linear-gradient(180deg, #ffffff, #fff9f0);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 36px rgba(37, 30, 18, 0.08);
+}
+
+.retail-texture {
+  position: relative;
+}
+
+.retail-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgba(12, 12, 12, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(12, 12, 12, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, black, transparent 72%);
+}
+
+.product-swatch {
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 79, 47, 0.16), transparent 26%),
+    linear-gradient(135deg, #fffaf1, #f1e5d1);
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* ==========================================
-   Emil Kowalski Design Skill Animations
-   ========================================== */
-
-/* 1. Tactile Button Scale Feedback on Click */
-button,
-.interactive-click {
-  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease !important;
-  will-change: transform;
-}
-button:active:not(:disabled),
-.interactive-click:active:not(:disabled) {
-  transform: scale(0.96) !important;
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-/* 2. Don't Animate From scale(0) - Modal Entry */
+::-webkit-scrollbar-track {
+  background: #f2eadc;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cfc3b0;
+  border: 2px solid #f2eadc;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a99d8c;
+}
+
 @keyframes scaleUp {
   0% {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.96) translateY(8px);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -86,37 +254,145 @@ button:active:not(:disabled),
   animation: scaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* 3. Smooth Page/Tab switches with Blur Crossfade Trick */
 @keyframes fadeInBlur {
   0% {
     opacity: 0;
     filter: blur(4px);
-    transform: translateY(2px);
+    transform: translateY(8px);
   }
   100% {
     opacity: 1;
-    filter: blur(0px);
+    filter: blur(0);
     transform: translateY(0);
   }
 }
 
 .animate-fade-in-blur {
-  animation: fadeInBlur 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInBlur 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* 4. Backdrop Smooth Overlay transition */
-@keyframes backdropFade {
+@keyframes slideInRight {
   0% {
-    background-color: rgba(0, 0, 0, 0);
-    backdrop-filter: blur(0px);
+    opacity: 0;
+    transform: translateX(18px);
   }
   100% {
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+    opacity: 1;
+    transform: translateX(0);
   }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Compatibility palette: the previous UI used zinc dark utilities everywhere. */
+.bg-zinc-950,
+.bg-zinc-950\/80,
+.bg-zinc-950\/60,
+.bg-zinc-950\/40,
+.bg-zinc-950\/20,
+.bg-zinc-900,
+.bg-zinc-900\/60,
+.bg-zinc-900\/40,
+.bg-zinc-900\/20,
+.bg-zinc-900\/10 {
+  background-color: var(--canvas-strong) !important;
+}
+
+.border-zinc-900,
+.border-zinc-900\/80,
+.border-zinc-900\/60,
+.border-zinc-800,
+.border-zinc-800\/80,
+.border-zinc-800\/60,
+.border-zinc-800\/50 {
+  border-color: var(--line) !important;
+}
+
+.text-white,
+.text-zinc-100,
+.text-zinc-200,
+.text-zinc-300 {
+  color: var(--ink) !important;
+}
+
+.text-zinc-400,
+.text-zinc-500,
+.text-zinc-600,
+.text-zinc-700 {
+  color: var(--muted) !important;
+}
+
+.text-rose-300,
+.text-rose-400 {
+  color: var(--coral) !important;
+}
+
+.text-amber-300,
+.text-amber-400 {
+  color: var(--gold) !important;
+}
+
+.text-emerald-400 {
+  color: var(--green) !important;
+}
+
+.shadow-black\/80,
+.shadow-rose-500\/10 {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.from-rose-400,
+.from-rose-500\/15 {
+  --tw-gradient-from: var(--coral) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(255, 79, 47, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.to-amber-300,
+.to-amber-500\/5 {
+  --tw-gradient-to: #f6bf4f var(--tw-gradient-to-position) !important;
 }
 
 .fixed.inset-0.z-50 {
-  animation: backdropFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  background: rgba(12, 12, 12, 0.54) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
+@media (max-width: 767px) {
+  body {
+    background: var(--canvas);
+  }
+
+  .mobile-command-nav.bg-zinc-950\/85 {
+    background: rgba(12, 12, 12, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 20px 60px rgba(12, 12, 12, 0.36) !important;
+  }
+
+  .mobile-command-nav .bg-rose-400\/10 {
+    background-color: rgba(255, 79, 47, 0.16) !important;
+  }
+
+  .mobile-command-nav .text-zinc-500,
+  .mobile-command-nav .text-zinc-600 {
+    color: #a7a198 !important;
+  }
+
+  .mobile-command-nav .text-rose-400 {
+    color: var(--coral) !important;
+  }
+}

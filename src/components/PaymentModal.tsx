@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Banknote, Smartphone, CheckCircle2, ChevronRight, X } from "lucide-react";
+import { Banknote, Smartphone, CheckCircle2, X } from "lucide-react";
 import { Customer } from "../lib/db";
 
 interface PaymentModalProps {

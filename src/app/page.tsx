@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import LoginScreen from "../components/LoginScreen";
 import Sidebar from "../components/Sidebar";
-import POSModule from "../components/POSModule";
+import POSModule, { type CartItem } from "../components/POSModule";
 import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
 import InventoryModule from "../components/InventoryModule";
@@ -22,7 +22,7 @@ export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Checkout modal control states
-  const [checkoutCart, setCheckoutCart] = useState<any[] | null>(null);
+  const [checkoutCart, setCheckoutCart] = useState<CartItem[] | null>(null);
   const [checkoutCustomer, setCheckoutCustomer] = useState<Customer | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
@@ -31,6 +31,7 @@ export default function Home() {
 
   // Load session and master datasets on mount
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     const sessionOperator = db.getSession();
     if (sessionOperator) {
       setOperator(sessionOperator);
@@ -41,6 +42,7 @@ export default function Home() {
     setCategories(db.getCategories());
     setCustomers(db.getCustomers());
     setTransactions(db.getTransactions());
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   const handleLoginSuccess = (operatorName: string) => {
@@ -57,7 +59,7 @@ export default function Home() {
     setOperator(null);
   };
 
-  const triggerCheckoutFlow = (cartItems: any[], customer: Customer | null) => {
+  const triggerCheckoutFlow = (cartItems: CartItem[], customer: Customer | null) => {
     setCheckoutCart(cartItems);
     setCheckoutCustomer(customer);
     setShowPaymentModal(true);
@@ -65,9 +67,7 @@ export default function Home() {
 
   const handlePaymentComplete = (
     paymentMethod: "Cash" | "Mobile Money",
-    momoNetwork?: "MTN" | "Telecel" | "AT",
-    referenceText?: string,
-    amountPaid?: number
+    momoNetwork?: "MTN" | "Telecel" | "AT"
   ) => {
     if (!checkoutCart || !operator) return;
 
@@ -85,7 +85,7 @@ export default function Home() {
       const checkoutItems = checkoutCart.filter((item) => item.product.id === prod.id);
       if (checkoutItems.length === 0) return prod;
 
-      let newVariations = prod.variations ? [...prod.variations] : [];
+      const newVariations = prod.variations ? [...prod.variations] : [];
       let baseStockDeduction = 0;
 
       for (const item of checkoutItems) {
@@ -168,7 +168,7 @@ export default function Home() {
         const txItems = targetTx.items.filter((item) => item.productId === prod.id);
         if (txItems.length === 0) return prod;
 
-        let newVariations = prod.variations ? [...prod.variations] : [];
+        const newVariations = prod.variations ? [...prod.variations] : [];
         let baseStockIncrement = 0;
 
         for (const item of txItems) {
@@ -293,13 +293,19 @@ export default function Home() {
       }, 0)
     : 0;
 
-  return (
-    <div className="flex min-h-screen bg-zinc-950 text-zinc-100 flex-col md:flex-row relative">
-      
-      {/* Background visual glows */}
-      <div className="absolute top-[-10%] left-[20%] w-[500px] h-[500px] rounded-full bg-violet-600/5 blur-[120px] pointer-events-none animate-pulse-glow" />
-      <div className="absolute bottom-[10%] right-[10%] w-[400px] h-[400px] rounded-full bg-rose-500/5 blur-[100px] pointer-events-none" />
+  const inventoryValue = products.reduce((acc, product) => acc + product.price * product.stock, 0);
+  const lowStockCount = products.filter((product) => product.stock > 0 && product.stock < 10).length;
+  const completedTransactions = transactions.filter((tx) => !tx.isVoided);
+  const salesTotal = completedTransactions.reduce((acc, tx) => acc + tx.total, 0);
+  const moduleDescriptions: Record<string, string> = {
+    pos: "Fast retail checkout with live stock protection and customer-linked receipts.",
+    inventory: "Catalog control, stock counts, category setup, and variation pricing.",
+    customers: "Client profiles, notes, phone lookup, and purchase history.",
+    analytics: "Revenue pulse, payment mix, receipt history, and void control."
+  };
 
+  return (
+    <div className="retail-texture flex min-h-screen bg-background text-foreground flex-col md:flex-row relative overflow-hidden">
       {/* Navigation sidebar (desktop or bottom mobile navigation) */}
       <Sidebar
         activeTab={activeTab}
@@ -309,28 +315,62 @@ export default function Home() {
       />
 
       {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-0">
+      <div className="relative z-10 flex-1 flex flex-col min-w-0 pb-24 md:pb-0">
         
         {/* Workspace Top Toolbar */}
-        <header className="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex flex-col gap-0.5">
-            <h2 className="text-sm font-black uppercase tracking-wider text-zinc-200">
-              {getModuleTitle()}
-            </h2>
-            <span className="text-[9px] text-zinc-500 font-medium tracking-wide">
-              Logged in as Operator: <span className="text-rose-300 font-semibold">{operator}</span>
-            </span>
-          </div>
-          
-          <div className="hidden sm:flex items-center gap-3 text-xs text-zinc-400 bg-zinc-900/40 px-3.5 py-1.5 rounded-xl border border-zinc-900">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md px-4 py-3 md:px-8 md:py-5">
+          <div className="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">
+                <span className="h-2 w-2 rounded-full bg-rose-400" />
+                Live terminal
+              </div>
+              <h2 className="mt-1 text-[1.65rem] font-black leading-tight tracking-tight text-zinc-200 md:text-3xl">
+                {getModuleTitle()}
+              </h2>
+              <p className="mt-1 max-w-2xl text-xs font-medium leading-relaxed text-zinc-500 md:text-sm">
+                {moduleDescriptions[activeTab]} Operator:{" "}
+                <span className="font-bold text-zinc-200">{operator}</span>
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-4 gap-2 xl:w-[620px]">
+              {[
+                { label: "Sales", value: `GH₵ ${salesTotal.toFixed(0)}` },
+                { label: "Receipts", value: completedTransactions.length.toString() },
+                { label: "Catalog", value: products.length.toString() },
+                { label: "Low stock", value: lowStockCount.toString() }
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  className="metric-card rounded-2xl px-2.5 py-2 md:px-4 md:py-3"
+                >
+                  <div className="truncate text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500 md:text-[9px] md:tracking-[0.18em]">
+                    {metric.label}
+                  </div>
+                  <div className="mt-1 truncate font-mono text-xs font-black text-zinc-200 md:text-base">
+                    {metric.value}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </header>
 
         {/* Dynamic module frame container */}
-        <main className="flex-1 p-6 md:p-8 flex flex-col overflow-y-auto max-h-[calc(100vh-68px)]">
-          <div key={activeTab} className="animate-fade-in-blur flex-1 flex flex-col">
+        <main className="flex-1 overflow-y-auto p-4 md:max-h-[calc(100vh-154px)] md:p-8">
+          <div className="mb-4 hidden items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-xs text-zinc-500 md:flex">
+            <div className="font-medium">
+              Inventory value:{" "}
+              <span className="font-mono font-black text-zinc-200">
+                GH₵ {inventoryValue.toFixed(2)}
+              </span>
+            </div>
+            <div className="font-mono">
+              {new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+            </div>
+          </div>
+          <div key={activeTab} className="animate-fade-in-blur flex min-h-0 flex-1 flex-col">
             {renderActiveModule()}
           </div>
         </main>

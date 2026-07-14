@@ -34,113 +34,160 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-zinc-950 flex items-center justify-center relative overflow-hidden px-4">
-      {/* Visual background glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[450px] h-[450px] rounded-full bg-violet-600/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[450px] h-[450px] rounded-full bg-rose-500/5 blur-[120px] pointer-events-none" />
+    <div className="retail-texture min-h-screen w-full overflow-hidden bg-background px-4 py-6 md:p-8">
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-48px)] w-full max-w-7xl grid-cols-1 overflow-hidden rounded-[2rem] border border-zinc-900 bg-zinc-950 shadow-2xl md:grid-cols-[1.05fr_0.95fr]">
+        <section className="command-rail relative hidden flex-col justify-between overflow-hidden p-8 md:flex lg:p-10">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rose-400/80 to-transparent" />
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="relative h-12 w-12 rounded-2xl bg-white p-2">
+                <Image
+                  src="/logo.png"
+                  alt="DiaPalace Logo"
+                  fill
+                  className="object-contain p-1"
+                  priority
+                />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black tracking-tight text-white">DiaPalace.com</h1>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-rose-300">
+                  Secure retail terminal
+                </p>
+              </div>
+            </div>
 
-      {/* Login Card */}
-      <div className="w-full max-w-md relative z-10">
-        
-        {/* Soft glass panel */}
-        <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/80 rounded-3xl p-8 shadow-2xl flex flex-col items-center animate-scale-up">
-          
-          {/* Logo */}
-          <div className="relative w-24 h-24 mb-6">
-            <Image
-              src="/logo.png"
-              alt="DiaPalace Logo"
-              fill
-              className="object-contain"
-              priority
-            />
+            <div className="mt-20 max-w-xl">
+              <h2 className="text-5xl font-black leading-[0.95] tracking-tight text-white lg:text-6xl">
+                Strong control for every sale Edith makes.
+              </h2>
+              <p className="mt-6 max-w-md text-sm font-medium leading-7 text-zinc-400">
+                Products, customer profiles, payment records, receipt sharing, and stock movement stay in one focused operator workspace.
+              </p>
+            </div>
           </div>
 
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold tracking-tight text-white">
-              DiaPalace POS
-            </h2>
-            <p className="text-xs text-zinc-500 mt-1">
-              Authorized Operator Login for Edith
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              ["Catalog", "5 seed items"],
+              ["Payments", "Cash + MoMo"],
+              ["Receipts", "Print + share"]
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-zinc-900 bg-zinc-900/40 p-4">
+                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">{label}</div>
+                <div className="mt-2 text-sm font-black text-zinc-200">{value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="flex items-center justify-center bg-zinc-950 p-5 md:p-10">
+          <div className="w-full max-w-md animate-scale-up">
+            <div className="mb-8 flex items-center justify-center gap-3 md:hidden">
+              <div className="relative h-12 w-12 rounded-2xl bg-white p-2 shadow-lg">
+                <Image
+                  src="/logo.png"
+                  alt="DiaPalace Logo"
+                  fill
+                  className="object-contain p-1"
+                  priority
+                />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-zinc-200">DiaPalace.com</h1>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Retail POS</p>
+              </div>
+            </div>
+
+            <div className="premium-panel rounded-[1.75rem] p-6 shadow-xl md:p-8">
+              <div className="mb-8">
+                <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-300">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <h2 className="text-3xl font-black tracking-tight text-zinc-200">
+                  Unlock terminal
+                </h2>
+                <p className="mt-2 text-sm font-medium leading-6 text-zinc-500">
+                  Authorized operator login for Edith&apos;s DiaPalace retail system.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex w-full flex-col gap-5">
+                {error && (
+                  <div className="flex items-center gap-2.5 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-bold text-rose-300">
+                    <ShieldAlert className="h-4 w-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                    Operator Profile
+                  </label>
+                  <div className="flex w-full items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950 px-4 py-3 text-sm text-zinc-300">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-400 to-amber-300 text-[11px] font-black text-zinc-950">
+                      ED
+                    </div>
+                    <div>
+                      <div className="font-black text-zinc-200">Edith</div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Store Operator</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative flex flex-col gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                    Passcode
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter passcode"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-zinc-800/80 bg-zinc-950 py-3.5 pl-12 pr-12 text-sm font-bold text-zinc-100 placeholder-zinc-600 focus:outline-none"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 rounded-lg p-1 text-zinc-500 hover:text-zinc-300"
+                      aria-label={showPassword ? "Hide passcode" : "Show passcode"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-400 to-amber-300 py-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-950 shadow-lg shadow-rose-500/10 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
+                  ) : (
+                    <>
+                      <span>Unlock Register</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-center">
+                <span className="text-[10px] font-bold text-zinc-600">
+                  Demo access: <code className="font-mono text-rose-300/80">edith123</code>
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-5 text-center text-[10px] font-black uppercase tracking-[0.22em] text-zinc-700">
+              diapalace.com secure POS terminal
             </p>
           </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
-            {error && (
-              <div className="flex items-center gap-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs py-3 px-4 rounded-xl">
-                <ShieldAlert className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
-                Operator Profile
-              </label>
-              <div className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-4 py-3 text-sm text-zinc-300 flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-rose-400 to-amber-300 flex items-center justify-center text-[10px] font-bold text-zinc-950">
-                  ED
-                </div>
-                <div>
-                  <div className="font-semibold text-zinc-200">Edith</div>
-                  <div className="text-[10px] text-zinc-500">Store Operator</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5 relative">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
-                Passcode
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter passcode"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl py-3 pl-12 pr-12 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-rose-400/50 transition-colors"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-rose-400 to-amber-300 hover:opacity-90 active:scale-[0.98] text-zinc-950 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-rose-500/10 cursor-pointer disabled:opacity-50"
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Unlock Register</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Hint */}
-          <div className="mt-8 text-center bg-zinc-950/40 border border-zinc-900 px-4 py-2 rounded-xl">
-            <span className="text-[10px] font-medium text-zinc-600">
-              Demo Access Hint: Use passcode <code className="text-rose-300/80 font-mono">edith123</code>
-            </span>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <p className="text-center text-[10px] text-zinc-700 mt-6 uppercase tracking-widest">
-          diapalace.com Secure POS Terminal
-        </p>
+        </section>
       </div>
     </div>
   );

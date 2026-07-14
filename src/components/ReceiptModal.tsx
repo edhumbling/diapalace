@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Printer, Share2, MessageSquare, Send, Mail, X } from "lucide-react";
+import { Printer, MessageSquare, Send, Mail, X } from "lucide-react";
 import { Transaction } from "../lib/db";
 
 interface ReceiptModalProps {
@@ -174,7 +174,7 @@ Come back soon.
         <div className="flex-1 bg-white text-zinc-950 font-mono text-[10px] p-5 rounded-2xl shadow-inner max-h-[420px] overflow-y-auto border border-zinc-200">
           <div className="text-center mb-4">
             <h4 className="text-sm font-bold tracking-wider leading-none">DIAPALACE.COM</h4>
-            <span className="text-[9px] text-zinc-500 font-medium">Edith's Retail Store</span>
+            <span className="text-[9px] text-zinc-500 font-medium">Edith&apos;s Retail Store</span>
             <p className="text-[8px] text-zinc-500">Accra, Ghana</p>
           </div>
 

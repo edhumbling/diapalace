@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Users, Search, Save, Calendar, FileText, Phone, ArrowRight } from "lucide-react";
+import { Plus, Search, Save, FileText, Phone } from "lucide-react";
 import { Customer, Transaction, db } from "../lib/db";
 
 interface CustomersModuleProps {
@@ -222,7 +222,7 @@ export default function CustomersModule({
               </div>
               {activeCustomer.notes && (
                 <div className="mt-4 p-3 bg-zinc-950/60 rounded-xl text-[10px] text-zinc-400 leading-relaxed italic border border-zinc-900">
-                  "{activeCustomer.notes}"
+                  &quot;{activeCustomer.notes}&quot;
                 </div>
               )}
             </div>

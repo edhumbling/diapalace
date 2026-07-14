@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Edit2, Trash2, Tag, Save, X, RefreshCw, Layers } from "lucide-react";
+import { Plus, Edit2, Trash2, Tag, Save, X, Layers } from "lucide-react";
 import { Product, ProductVariation, db } from "../lib/db";
 
 interface InventoryModuleProps {
@@ -68,7 +68,11 @@ export default function InventoryModule({
   };
 
   // Update variation row helper
-  const updateVariationRow = (index: number, key: keyof ProductVariation, val: any) => {
+  const updateVariationRow = <K extends keyof ProductVariation>(
+    index: number,
+    key: K,
+    val: ProductVariation[K]
+  ) => {
     setFormVariations((prev) =>
       prev.map((vari, idx) => {
         if (idx === index) {
