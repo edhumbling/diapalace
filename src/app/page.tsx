@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ToastProvider } from "../components/Toasts";
+import NeuralField from "../components/glass/NeuralField";
 import LoginScreen from "../components/LoginScreen";
 import Sidebar from "../components/Sidebar";
 import POSModule, { type CartItem } from "../components/POSModule";
@@ -12,10 +13,32 @@ import CustomersModule from "../components/CustomersModule";
 import AnalyticsModule from "../components/AnalyticsModule";
 import { db, Product, Customer, Transaction } from "../lib/db";
 
+const MODULE_META: Record<string, { title: string; blurb: string; accent: string }> = {
+  pos: {
+    title: "Sales Register",
+    blurb: "Fast retail checkout with live stock protection and customer-linked receipts.",
+    accent: "var(--ice)",
+  },
+  inventory: {
+    title: "Inventory",
+    blurb: "Catalog control, stock counts, category setup, and variation pricing.",
+    accent: "var(--lilac)",
+  },
+  customers: {
+    title: "Customers",
+    blurb: "Client profiles, notes, phone lookup, and purchase history.",
+    accent: "var(--coral)",
+  },
+  analytics: {
+    title: "Reports",
+    blurb: "Revenue pulse, payment mix, receipt history, and void control.",
+    accent: "var(--mint)",
+  },
+};
+
 export default function Home() {
   const [operator, setOperator] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("pos");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -28,21 +51,6 @@ export default function Home() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const [activeReceipt, setActiveReceipt] = useState<Transaction | null>(null);
-
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    const stored = localStorage.getItem("dp_theme");
-    if (stored === "dark" || (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-      setTheme("dark");
-      document.documentElement.classList.add("dark");
-    }
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("dp_theme", theme);
-  }, [theme]);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -68,10 +76,6 @@ export default function Home() {
   const handleLogout = () => {
     db.setSession(null);
     setOperator(null);
-  };
-
-  const toggleTheme = () => {
-    setTheme((t) => (t === "light" ? "dark" : "light"));
   };
 
   const triggerCheckoutFlow = (cartItems: CartItem[], customer: Customer | null, discount?: number) => {
@@ -215,20 +219,9 @@ export default function Home() {
     db.saveProducts(refundUpdatedProducts);
   }, [transactions, products]);
 
-  const handleProductsChange = (newProds: Product[]) => {
-    setProducts(newProds);
-  };
-
-  const handleCategoriesChange = (newCats: string[]) => {
-    setCategories(newCats);
-  };
-
-  const handleCustomersChange = (newCusts: Customer[]) => {
-    setCustomers(newCusts);
-  };
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)) return;
       if (e.key === "1") { setActiveTab("pos"); e.preventDefault(); }
       if (e.key === "2") { setActiveTab("inventory"); e.preventDefault(); }
       if (e.key === "3") { setActiveTab("customers"); e.preventDefault(); }
@@ -240,22 +233,13 @@ export default function Home() {
 
   const renderActiveModule = () => {
     switch (activeTab) {
-      case "pos":
-        return (
-          <POSModule
-            products={products}
-            categories={categories}
-            customers={customers}
-            onCheckout={triggerCheckoutFlow}
-          />
-        );
       case "inventory":
         return (
           <InventoryModule
             products={products}
             categories={categories}
-            onProductsChange={handleProductsChange}
-            onCategoriesChange={handleCategoriesChange}
+            onProductsChange={setProducts}
+            onCategoriesChange={setCategories}
           />
         );
       case "customers":
@@ -263,7 +247,7 @@ export default function Home() {
           <CustomersModule
             customers={customers}
             transactions={transactions}
-            onCustomersChange={handleCustomersChange}
+            onCustomersChange={setCustomers}
             onViewReceipt={setActiveReceipt}
           />
         );
@@ -288,93 +272,82 @@ export default function Home() {
     }
   };
 
-  const getModuleTitle = () => {
-    switch (activeTab) {
-      case "pos": return "Sales Register";
-      case "inventory": return "Product & Stock Inventory";
-      case "customers": return "Customer directory";
-      case "analytics": return "Sales Analytics & Reports";
-      default: return "Operations Workspace";
-    }
-  };
-
   if (!operator) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const meta = MODULE_META[activeTab] ?? MODULE_META.pos;
+
   const completedTransactions = transactions.filter((tx) => !tx.isVoided && tx.total >= 0);
   const salesTotal = completedTransactions.reduce((acc, tx) => acc + tx.total, 0);
-  const inventoryValue = products.reduce((acc, p) => acc + p.price * p.stock, 0);
   const lowStockCount = products.filter((p) => p.stock > 0 && p.stock < 10).length;
 
-  const moduleDescriptions: Record<string, string> = {
-    pos: "Fast retail checkout with live stock protection and customer-linked receipts.",
-    inventory: "Catalog control, stock counts, category setup, and variation pricing.",
-    customers: "Client profiles, notes, phone lookup, and purchase history.",
-    analytics: "Revenue pulse, payment mix, receipt history, and void control."
-  };
+  const metrics = [
+    { label: "Sales", value: `GH₵ ${salesTotal.toFixed(0)}`, dot: "var(--ice)" },
+    { label: "Receipts", value: completedTransactions.length.toString(), dot: "var(--lilac)" },
+    { label: "Catalog", value: products.length.toString(), dot: "var(--sky)" },
+    { label: "Low stock", value: lowStockCount.toString(), dot: "var(--honey)" },
+  ];
 
   return (
     <ToastProvider>
-      <div className="retail-texture flex min-h-screen bg-background text-foreground flex-col md:flex-row relative overflow-hidden">
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onLogout={handleLogout}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-        />
+      <div className="relative min-h-screen text-ink lg:h-screen lg:overflow-hidden">
+        <NeuralField />
 
-        <div className="relative z-10 flex-1 flex flex-col min-w-0 pb-24 md:pb-0">
-          <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md px-4 py-3 md:px-8 md:py-5">
-            <div className="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300">
-                  <span className="h-2 w-2 rounded-full bg-rose-400" />
-                  Operations
-                </div>
-                <h2 className="mt-1 text-[1.65rem] font-black leading-tight tracking-tight text-zinc-200 md:text-3xl">
-                  {getModuleTitle()}
-                </h2>
-                <p className="mt-1 max-w-2xl text-xs font-medium leading-relaxed text-zinc-500 md:text-sm">
-                  {moduleDescriptions[activeTab]} Press <kbd className="px-1 py-0.5 rounded border border-zinc-800 text-[9px] font-mono">1</kbd>-<kbd className="px-1 py-0.5 rounded border border-zinc-800 text-[9px] font-mono">4</kbd> to switch tabs.
-                </p>
-              </div>
+        <div className="relative z-10 flex h-full">
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onLogout={handleLogout}
+            operator={operator}
+          />
 
-              <div className="grid grid-cols-4 gap-2 xl:w-[620px]">
-                {[
-                  { label: "Sales", value: `GH₵ ${salesTotal.toFixed(0)}` },
-                  { label: "Receipts", value: completedTransactions.length.toString() },
-                  { label: "Catalog", value: products.length.toString() },
-                  { label: "Low stock", value: lowStockCount.toString() }
-                ].map((metric) => (
-                  <div key={metric.label} className="metric-card rounded-2xl px-2.5 py-2 md:px-4 md:py-3">
-                    <div className="truncate text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500 md:text-[9px] md:tracking-[0.18em]">
-                      {metric.label}
-                    </div>
-                    <div className="mt-1 truncate font-mono text-xs font-black text-zinc-200 md:text-base">
-                      {metric.value}
-                    </div>
+          <div className="flex min-w-0 flex-1 flex-col lg:h-screen">
+            <header className="px-4 pt-4 md:px-6">
+              <div className="g-panel rise flex flex-col gap-4 rounded-[26px] px-5 py-4 md:px-6 xl:flex-row xl:items-center xl:justify-between">
+                <div className="min-w-0">
+                  <div className="lbl flex items-center gap-2" style={{ color: meta.accent }}>
+                    <span
+                      className="pulse-dot inline-block h-1.5 w-1.5 rounded-full"
+                      style={{ background: meta.accent, color: meta.accent }}
+                    />
+                    DiaPalace Operations
                   </div>
-                ))}
-              </div>
-            </div>
-          </header>
+                  <h2 className="font-display mt-1 text-2xl font-bold leading-tight tracking-tight text-ink md:text-[28px]">
+                    {meta.title}
+                  </h2>
+                  <p className="mt-1 hidden max-w-xl text-xs leading-relaxed text-dim md:block">
+                    {meta.blurb}{" "}
+                    <span className="text-faint">
+                      Press <span className="kbd">1</span>–<span className="kbd">4</span> to glide between modules.
+                    </span>
+                  </p>
+                </div>
 
-          <main className="flex-1 overflow-y-auto p-4 md:max-h-[calc(100vh-154px)] md:p-8">
-            <div className="mb-4 hidden items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-xs text-zinc-500 md:flex">
-              <div className="font-medium">
-                Inventory value:{" "}
-                <span className="font-mono font-black text-zinc-200">GH₵ {inventoryValue.toFixed(2)}</span>
+                <div className="grid grid-cols-4 gap-2 xl:w-[540px] xl:shrink-0">
+                  {metrics.map((m) => (
+                    <div key={m.label} className="g-chip rounded-2xl px-3 py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-1 w-1 rounded-full" style={{ background: m.dot }} />
+                        <span className="truncate text-[8px] font-extrabold uppercase tracking-[0.14em] text-faint md:text-[9px]">
+                          {m.label}
+                        </span>
+                      </div>
+                      <div className="num mt-1 truncate text-sm font-bold text-ink md:text-base">
+                        {m.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="font-mono">
-                {new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+            </header>
+
+            <main className="flex-1 overflow-y-auto px-4 pb-32 pt-4 md:px-6 lg:pb-6">
+              <div key={activeTab} className="rise flex min-h-0 flex-1 flex-col">
+                {renderActiveModule()}
               </div>
-            </div>
-            <div key={activeTab} className="animate-fade-in-blur flex min-h-0 flex-1 flex-col">
-              {renderActiveModule()}
-            </div>
-          </main>
+            </main>
+          </div>
         </div>
 
         {showPaymentModal && (

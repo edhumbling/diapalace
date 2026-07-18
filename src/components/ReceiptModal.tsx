@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Printer, MessageSquare, Mail, X, Copy, Check } from "lucide-react";
+import { Icon } from "./glass/icons";
 import { Transaction } from "../lib/db";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
@@ -43,22 +43,6 @@ Status:    ${transaction.isVoided ? "VOIDED" : transaction.total < 0 ? "REFUNDED
 ================================
 Thank you for your business! Come back soon.
   `.trim();
-
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) {
-      const blob = new Blob([receiptHtml], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `receipt-${transaction.id}.html`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return;
-    }
-    printWindow.document.write(receiptHtml);
-    printWindow.document.close();
-  };
 
   const receiptHtml = `
     <html>
@@ -104,6 +88,22 @@ Thank you for your business! Come back soon.
       </body>
     </html>`;
 
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) {
+      const blob = new Blob([receiptHtml], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt-${transaction.id}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    printWindow.document.write(receiptHtml);
+    printWindow.document.close();
+  };
+
   const getWhatsAppLink = () => {
     const encodedText = encodeURIComponent(fullReceiptText);
     const phoneNum = transaction.customer ? transaction.customer.phone.replace(/[^0-9+]/g, "") : "";
@@ -125,105 +125,111 @@ Thank you for your business! Come back soon.
   };
 
   const statusLabel = transaction.isVoided ? "VOIDED" : transaction.total < 0 ? "REFUNDED" : "PAID";
+  const statusPill = transaction.isVoided ? "pill-coral" : transaction.total < 0 ? "pill-honey" : "pill-mint";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div className="g-backdrop fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         ref={trapRef}
-        className="glass-panel w-full max-w-2xl rounded-3xl border border-zinc-800 p-6 flex flex-col md:flex-row gap-6 shadow-2xl animate-scale-up max-h-[90vh] overflow-y-auto"
+        className="g-panel-2 pop flex max-h-[90vh] w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-[30px] p-6 md:flex-row"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 bg-white text-zinc-950 font-mono text-[10px] p-5 rounded-2xl shadow-inner max-h-[420px] overflow-y-auto border border-zinc-200">
-          <div className="text-center mb-4">
-            <h4 className="text-sm font-bold tracking-wider leading-none">DIAPALACE.COM</h4>
-            <span className="text-[9px] text-zinc-500 font-medium">Retail Operations</span>
+        {/* Paper receipt — a slice of bright paper floating in liquid glass */}
+        <div className="max-h-[440px] flex-1 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-5 font-mono text-[10px] text-zinc-900 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]">
+          <div className="mb-4 text-center">
+            <h4 className="text-sm font-bold leading-none tracking-wider">DIAPALACE.COM</h4>
+            <span className="text-[9px] font-medium text-zinc-500">Retail Operations</span>
             <p className="text-[8px] text-zinc-500">Accra, Ghana</p>
           </div>
 
-          <div className="flex flex-col gap-1 border-t border-b border-dashed border-zinc-300 py-3 mb-3">
+          <div className="mb-3 flex flex-col gap-1 border-y border-dashed border-zinc-300 py-3">
             <div><strong>RECEIPT ID:</strong> {transaction.id}</div>
             <div><strong>DATE:</strong> {formattedDate}</div>
             <div><strong>OPERATOR:</strong> {transaction.operator}</div>
             <div><strong>CUSTOMER:</strong> {transaction.customer ? `${transaction.customer.name} (${transaction.customer.phone})` : "Walk-in"}</div>
           </div>
 
-          <div className="flex flex-col gap-2 mb-3">
-            <span className="font-bold underline text-[9px] uppercase tracking-wide">Items Purchased</span>
+          <div className="mb-3 flex flex-col gap-2">
+            <span className="text-[9px] font-bold uppercase tracking-wide underline">Items Purchased</span>
             {transaction.items.map((item, idx) => {
               const displaySpecs = item.variation ? ` (${item.variation.size || ""}${item.variation.size && item.variation.color ? "/" : ""}${item.variation.color || ""})` : "";
               return (
-                <div key={idx} className="flex justify-between items-start leading-tight">
+                <div key={idx} className="flex items-start justify-between leading-tight">
                   <div className="pr-2">
                     {item.name}
-                    {displaySpecs && <span className="text-zinc-500 text-[9px] block">{displaySpecs}</span>}
-                    <span className="text-zinc-400 text-[8px] block">{item.quantity} x GH₵ {item.price.toFixed(2)}</span>
+                    {displaySpecs && <span className="block text-[9px] text-zinc-500">{displaySpecs}</span>}
+                    <span className="block text-[8px] text-zinc-400">{item.quantity} x GH₵ {item.price.toFixed(2)}</span>
                   </div>
-                  <span className="font-bold shrink-0">GH₵ {(item.quantity * item.price).toFixed(2)}</span>
+                  <span className="shrink-0 font-bold">GH₵ {(item.quantity * item.price).toFixed(2)}</span>
                 </div>
               );
             })}
           </div>
 
-          <div className="border-t border-dashed border-zinc-300 pt-3 flex flex-col gap-1">
+          <div className="flex flex-col gap-1 border-t border-dashed border-zinc-300 pt-3">
             <div className="flex justify-between"><span>Subtotal</span><span>GH₵ {transaction.subtotal.toFixed(2)}</span></div>
             <div className="flex justify-between"><span>Discount</span><span>GH₵ {transaction.discount.toFixed(2)}</span></div>
-            <div className="flex justify-between font-bold text-xs border-t border-zinc-300 pt-2.5">
+            <div className="flex justify-between border-t border-zinc-300 pt-2.5 text-xs font-bold">
               <span>TOTAL BILL</span>
               <span>GH₵ {transaction.total.toFixed(2)}</span>
             </div>
           </div>
 
-          <div className="border-t border-dashed border-zinc-300 mt-4 pt-3 flex flex-col gap-0.5 text-zinc-500 text-[9px]">
+          <div className="mt-4 flex flex-col gap-0.5 border-t border-dashed border-zinc-300 pt-3 text-[9px] text-zinc-500">
             <div><strong>PAYMENT:</strong> {transaction.paymentMethod} {transaction.momoNetwork ? `(${transaction.momoNetwork})` : ""}</div>
             <div><strong>STATUS:</strong> {statusLabel}</div>
           </div>
 
-          <div className="text-center mt-5 text-[8px] text-zinc-400 leading-normal">
+          <div className="mt-5 text-center text-[8px] leading-normal text-zinc-400">
             Thank you for your business!<br />Come back soon.
           </div>
         </div>
 
-        <div className="w-full md:w-60 flex flex-col justify-between gap-6">
-          <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-              <h3 className="text-xs font-bold text-zinc-100 uppercase tracking-wide">Receipt Actions</h3>
-              <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
+        {/* Actions */}
+        <div className="flex w-full flex-col justify-between gap-5 md:w-56">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <h3 className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink">Receipt</h3>
+              <div className="flex items-center gap-2">
+                <span className={`pill ${statusPill}`}>{statusLabel}</span>
+                <button onClick={onClose} className="btn-ico h-8 w-8">
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
             </div>
 
             <button
               onClick={handlePrint}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-400 to-amber-300 hover:opacity-90 active:scale-[0.98] text-zinc-950 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-lg shadow-rose-500/10"
+              className="btn-aurora flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-[10px] font-extrabold uppercase tracking-[0.16em]"
             >
-              <Printer className="w-4 h-4" />
+              <Icon name="printer" size={15} strokeWidth={2} />
               <span>Print Receipt</span>
             </button>
 
             <button
               onClick={handleCopy}
-              className="w-full py-3 rounded-xl border border-zinc-800 hover:border-zinc-700/80 text-zinc-400 hover:text-zinc-200 text-xs font-semibold flex items-center justify-center gap-3 transition-colors cursor-pointer"
+              className="btn-ghost flex w-full items-center justify-center gap-2.5 rounded-2xl py-3 text-xs font-bold"
             >
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Icon name="check" size={15} className="text-mint" /> : <Icon name="copy" size={15} />}
               <span>{copied ? "Copied!" : "Copy Receipt"}</span>
             </button>
 
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Share Digital Bill</span>
+              <span className="lbl">Share digital bill</span>
               <a
                 href={getWhatsAppLink()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 text-xs font-semibold flex items-center gap-3 px-4 transition-colors"
+                className="flex w-full items-center gap-3 rounded-2xl border border-mint/25 bg-mint/[0.06] px-4 py-3 text-xs font-bold text-mint transition-all hover:border-mint/40 hover:bg-mint/[0.12]"
               >
-                <MessageSquare className="w-4 h-4" />
+                <Icon name="message" size={15} />
                 <span>WhatsApp Message</span>
               </a>
               <a
                 href={getEmailLink()}
-                className="w-full py-3 rounded-xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 text-violet-400 text-xs font-semibold flex items-center gap-3 px-4 transition-colors"
+                className="flex w-full items-center gap-3 rounded-2xl border border-lilac/25 bg-lilac/[0.06] px-4 py-3 text-xs font-bold text-lilac transition-all hover:border-lilac/40 hover:bg-lilac/[0.12]"
               >
-                <Mail className="w-4 h-4" />
+                <Icon name="mail" size={15} />
                 <span>Email Details</span>
               </a>
             </div>
@@ -231,7 +237,7 @@ Thank you for your business! Come back soon.
 
           <button
             onClick={onClose}
-            className="w-full py-3 rounded-xl border border-zinc-800 hover:border-zinc-700/80 text-zinc-400 hover:text-zinc-200 text-xs font-semibold uppercase tracking-wider bg-zinc-900/10 transition-all cursor-pointer"
+            className="btn-ghost w-full rounded-2xl py-3 text-[10px] font-extrabold uppercase tracking-[0.16em]"
           >
             Done & Close
           </button>

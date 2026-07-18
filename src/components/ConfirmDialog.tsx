@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { GlassTile, Icon } from "./glass/icons";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface ConfirmDialogProps {
@@ -30,37 +30,37 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
+    <div className="g-backdrop fixed inset-0 z-[90] flex items-center justify-center p-4" onClick={onCancel}>
       <div
         ref={trapRef}
-        className="glass-panel w-full max-w-sm rounded-2xl border border-zinc-800 p-5 flex flex-col gap-5 shadow-2xl animate-scale-up"
+        className="g-panel-2 pop flex w-full max-w-sm flex-col gap-5 rounded-[26px] p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-xl shrink-0 ${variant === "danger" ? "bg-rose-500/10 text-rose-400" : "bg-amber-500/10 text-amber-400"}`}>
-            <AlertTriangle className="w-5 h-5" />
+        <div className="flex items-start gap-3.5">
+          <GlassTile
+            name="alertTriangle"
+            tone={variant === "danger" ? "rose" : "amber"}
+            size={40}
+          />
+          <div className="min-w-0 flex-1">
+            <h3 className="font-display text-[15px] font-bold tracking-tight text-ink">{title}</h3>
+            <p className="mt-1 text-xs leading-relaxed text-dim">{message}</p>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-bold text-zinc-100">{title}</h3>
-            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">{message}</p>
-          </div>
-          <button onClick={onCancel} className="text-zinc-600 hover:text-zinc-300 cursor-pointer shrink-0">
-            <X className="w-4 h-4" />
+          <button onClick={onCancel} className="btn-ico h-8 w-8 shrink-0">
+            <Icon name="x" size={13} />
           </button>
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2.5 rounded-xl border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-semibold cursor-pointer transition-colors"
+            className="btn-ghost rounded-xl px-4 py-2.5 text-xs font-bold"
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
-            className={`px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-              variant === "danger"
-                ? "bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20"
-                : "bg-gradient-to-r from-rose-400 to-amber-300 text-zinc-950"
+            className={`rounded-xl px-4 py-2.5 text-xs font-extrabold ${
+              variant === "danger" ? "btn-danger" : "btn-aurora"
             }`}
           >
             {confirmLabel}

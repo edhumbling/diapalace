@@ -1,159 +1,139 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
-import {
-  ShoppingBag,
-  Package,
-  Users,
-  BarChart3,
-  LogOut,
-  Sun,
-  Moon,
-} from "lucide-react";
+import { GlassTile, Icon, type IconName, type TileTone } from "./glass/icons";
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
+  operator: string;
 }
 
-export default function Sidebar({
-  activeTab,
-  setActiveTab,
-  onLogout,
-  theme,
-  onToggleTheme,
-}: SidebarProps) {
-  const menuItems = [
-    { id: "pos", name: "Checkout POS", icon: ShoppingBag },
-    { id: "inventory", name: "Inventory", icon: Package },
-    { id: "customers", name: "Customers", icon: Users },
-    { id: "analytics", name: "Reports", icon: BarChart3 }
-  ];
+const MENU: { id: string; name: string; short: string; icon: IconName; tone: TileTone; keyHint: string }[] = [
+  { id: "pos", name: "Sales Register", short: "POS", icon: "pos", tone: "cyan", keyHint: "1" },
+  { id: "inventory", name: "Inventory", short: "Stock", icon: "box", tone: "violet", keyHint: "2" },
+  { id: "customers", name: "Customers", short: "Clients", icon: "users", tone: "rose", keyHint: "3" },
+  { id: "analytics", name: "Reports", short: "Reports", icon: "chart", tone: "emerald", keyHint: "4" },
+];
 
+export default function Sidebar({ activeTab, setActiveTab, onLogout, operator }: SidebarProps) {
   return (
     <>
-      <aside className="command-rail hidden md:flex md:w-64 flex-col border-r border-zinc-900 flex-shrink-0 min-h-screen relative z-30 shadow-2xl">
-        <div className="p-6 border-b border-zinc-900 flex items-center gap-3">
-          <div className="relative w-10 h-10 flex-shrink-0 rounded-2xl bg-white p-1.5 shadow-lg">
-            <Image
-              src="/logo.png"
-              alt="DiaPalace Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-          <div>
-            <h1 className="text-lg font-black tracking-tight text-white leading-none">
-              DiaPalace.com
-            </h1>
-            <span className="text-[10px] text-rose-300 font-semibold tracking-[0.16em] uppercase">
-              Retail Operations
-            </span>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-4 py-6 flex flex-col gap-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.1em] transition-all duration-200 cursor-pointer ${
-                  isActive
-                    ? "bg-zinc-900/40 text-rose-300 border border-zinc-800/50 shadow-lg"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40 border border-transparent"
-                }`}
-              >
-                <span className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
-                  isActive ? "border-zinc-800/50 bg-zinc-900/40" : "border-white/10 bg-white/5"
-                }`}>
-                  <Icon className={`w-4 h-4 ${isActive ? "text-rose-300" : "text-zinc-500"}`} />
-                </span>
-                <span className="text-left leading-tight">{item.name}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-zinc-900 bg-zinc-950/40 flex flex-col gap-3">
-          <button
-            onClick={onToggleTheme}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-zinc-800 hover:border-zinc-700/80 text-zinc-400 hover:text-zinc-200 text-[11px] font-black tracking-[0.16em] uppercase bg-zinc-900/10 cursor-pointer transition-all active:scale-[0.98]"
-          >
-            {theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
-            <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-          </button>
-          <div className="rounded-2xl border border-zinc-900 bg-zinc-900/40 p-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-[11px] font-semibold text-zinc-950">
-                OP
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-zinc-200 truncate">Operator</p>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Store Operator</p>
-              </div>
+      {/* ------- Desktop: floating glass command rail ------- */}
+      <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 p-4 pr-0 lg:block">
+        <div className="g-panel rise flex h-full flex-col rounded-[28px] p-4">
+          <div className="flex items-center gap-3 px-1 pb-5 pt-1">
+            <GlassTile name="gem" tone="brand" size={42} />
+            <div className="min-w-0">
+              <h1 className="font-display truncate text-[17px] font-bold leading-tight tracking-tight text-ink">
+                DiaPalace
+              </h1>
+              <span className="text-[9px] font-extrabold uppercase tracking-[0.22em] text-faint">
+                Liquid Commerce OS
+              </span>
             </div>
           </div>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-zinc-800 hover:border-zinc-700/80 text-zinc-400 hover:text-zinc-200 text-[11px] font-black tracking-[0.16em] uppercase bg-zinc-900/10 cursor-pointer transition-all active:scale-[0.98]"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
-          </button>
+
+          <div className="h-px w-full bg-white/[0.07]" />
+
+          <nav className="mt-4 flex flex-1 flex-col gap-1.5">
+            {MENU.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`group flex w-full items-center gap-3 rounded-2xl border px-2.5 py-2.5 text-left transition-all duration-200 ${
+                    isActive
+                      ? "border-white/[0.16] bg-white/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_24px_-12px_rgba(0,0,0,0.7)]"
+                      : "border-transparent hover:border-white/[0.08] hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <GlassTile
+                    name={item.icon}
+                    tone={item.tone}
+                    size={36}
+                    className={isActive ? "scale-105" : "opacity-80 saturate-[0.7] group-hover:opacity-100 group-hover:saturate-100"}
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className={`block truncate text-[13px] font-bold leading-tight ${isActive ? "text-ink" : "text-dim group-hover:text-ink"}`}>
+                      {item.name}
+                    </span>
+                    <span className="mt-0.5 block text-[9px] font-semibold uppercase tracking-[0.14em] text-faint">
+                      {item.id === "pos" ? "Checkout" : item.id === "inventory" ? "Catalog" : item.id === "customers" ? "Directory" : "Analytics"}
+                    </span>
+                  </span>
+                  <span className={`kbd transition-opacity ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"}`}>
+                    {item.keyHint}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="g-deep flex items-center gap-3 rounded-2xl p-3">
+              <GlassTile tone="slate" size={36} className="glass-tile-clear">
+                <span className="text-[11px] font-extrabold">
+                  {operator.substring(0, 2).toUpperCase()}
+                </span>
+              </GlassTile>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-bold text-ink">{operator}</p>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-faint">
+                  Store Operator
+                </p>
+              </div>
+              <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-mint text-mint" />
+            </div>
+            <button
+              onClick={onLogout}
+              className="btn-ghost flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-[10px] font-extrabold uppercase tracking-[0.18em]"
+            >
+              <Icon name="logout" size={14} />
+              <span>Lock Workspace</span>
+            </button>
+          </div>
         </div>
       </aside>
 
-      <nav className="mobile-command-nav md:hidden fixed bottom-4 left-3 right-3 z-40 bg-zinc-950/85 backdrop-blur-xl border border-zinc-900/80 rounded-3xl flex items-center justify-around py-2.5 px-2 shadow-2xl shadow-black/80">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
+      {/* ------- Mobile: floating liquid dock ------- */}
+      <nav className="g-panel-2 fixed bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-end gap-1.5 rounded-[26px] px-2.5 py-2 lg:hidden">
+        {MENU.map((item) => {
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl cursor-pointer relative transition-all active:scale-[0.93] ${
-                isActive ? "bg-rose-400/10" : ""
-              }`}
+              className="flex flex-col items-center gap-1 px-1 pb-0.5 pt-1"
+              aria-label={item.name}
             >
-              <Icon
-                className={`w-4.5 h-4.5 ${
-                  isActive ? "text-rose-400 scale-105" : "text-zinc-500 hover:text-zinc-300"
-                } transition-all`}
-              />
-              <span
-                className={`text-[8px] font-black tracking-widest uppercase ${
-                  isActive ? "text-rose-400" : "text-zinc-500"
+              <GlassTile
+                name={item.icon}
+                tone={item.tone}
+                size={42}
+                className={`transition-all duration-300 ${
+                  isActive
+                    ? "-translate-y-1.5 scale-110"
+                    : "opacity-75 saturate-[0.65] active:scale-95"
                 }`}
-              >
-                {item.id === "pos" ? "POS" : item.id === "inventory" ? "Catalog" : item.id === "customers" ? "Clients" : "Reports"}
+                style={
+                  isActive
+                    ? { boxShadow: `0 0 0 1.5px rgba(255,255,255,0.5), 0 14px 28px -8px rgba(0,0,0,0.7)` }
+                    : undefined
+                }
+              />
+              <span className={`text-[7.5px] font-extrabold uppercase tracking-[0.14em] ${isActive ? "text-ink" : "text-faint"}`}>
+                {item.short}
               </span>
-              {isActive && (
-                <span className="absolute bottom-[-1px] w-1 h-1 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
-              )}
             </button>
           );
         })}
-        <button
-          onClick={onToggleTheme}
-          className="flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl cursor-pointer transition-all active:scale-[0.93]"
-        >
-          {theme === "light" ? <Moon className="w-4.5 h-4.5 text-zinc-600" /> : <Sun className="w-4.5 h-4.5 text-zinc-600" />}
-          <span className="text-[8px] font-extrabold tracking-widest text-zinc-600 uppercase">{theme === "light" ? "Dark" : "Light"}</span>
-        </button>
-        <button
-          onClick={onLogout}
-          className="flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl cursor-pointer transition-all active:scale-[0.93]"
-        >
-          <LogOut className="w-4.5 h-4.5 text-zinc-600 hover:text-rose-400" />
-          <span className="text-[8px] font-extrabold tracking-widest text-zinc-600 uppercase">Lock</span>
+        <span className="mx-1 mb-4 h-8 w-px bg-white/10" />
+        <button onClick={onLogout} className="flex flex-col items-center gap-1 px-1 pb-0.5 pt-1" aria-label="Lock workspace">
+          <GlassTile name="logout" tone="slate" size={42} className="opacity-75 saturate-[0.65] active:scale-95" />
+          <span className="text-[7.5px] font-extrabold uppercase tracking-[0.14em] text-faint">Lock</span>
         </button>
       </nav>
     </>
