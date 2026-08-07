@@ -142,6 +142,7 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- hydrate the register from browser storage once. */
     try {
       const saved = window.localStorage.getItem("diapalace-pos-state");
       if (saved) {
@@ -156,6 +157,7 @@ export default function Home() {
       }
     } catch { /* Local storage is optional; the register still works without it. */ }
     setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {
