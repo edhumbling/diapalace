@@ -1,26 +1,24 @@
 import type { Metadata } from "next";
-import { Manrope, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
+import { Public_Sans, Merriweather } from "next/font/google";
 import "./globals.css";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
+const publicSans = Public_Sans({
+  variable: "--font-public-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 });
 
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+const merriweather = Merriweather({
+  variable: "--font-merriweather",
   subsets: ["latin"],
-});
-
-const jetbrains = JetBrains_Mono({
-  variable: "--font-jetbrains",
-  subsets: ["latin"],
+  weight: ["300", "400", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "DiaPalace — Liquid Commerce OS",
-  description:
-    "Point-of-sale, inventory, customer, and reporting workspace for DiaPalace.com — rendered in neural liquid glass.",
+  title: "DiaPalace | Ghana retail POS",
+  description: "A modern point-of-sale, inventory, and reconciliation system for DiaPalace in Ghana.",
 };
 
 export default function RootLayout({
@@ -29,12 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${manrope.variable} ${bricolage.variable} ${jetbrains.variable} h-full antialiased`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${publicSans.variable} ${merriweather.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }
