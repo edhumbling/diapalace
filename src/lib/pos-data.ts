@@ -27,6 +27,7 @@ export type PosState = {
   expenses: Expense[];
   taxEnabled: boolean;
   taxRate: number;
+  paymentMethods: string[];
 };
 
 export const seedProducts: Product[] = [];
@@ -49,4 +50,5 @@ export const defaultPosState: PosState = {
   expenses: seedExpenses,
   taxEnabled: false,
   taxRate: 15,
+  paymentMethods: ["Cash", "MTN MoMo", "Telecel Cash", "AirtelTigo Money", "Card / POS", "Bank transfer"],
 };

@@ -22,26 +22,26 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
     const db = context.env.diapalace_db;
     const flags: RedFlag[] = [];
 
-    // 1. Check Cash Shortages from shift_reconciliations
+    // 1. Check Cash Shortages from shift_closings
     const shortages = await db
       .prepare(
-        `SELECT sr.id, sr.cash_variance, sr.created_at, b.name as branch_name, u.full_name as cashier_name
-         FROM shift_reconciliations sr
-         LEFT JOIN branches b ON b.id = sr.branch_id
-         LEFT JOIN users u ON u.id = sr.cashier_id
-         WHERE sr.business_id = ? AND sr.cash_variance < 0
-         ORDER BY sr.created_at DESC LIMIT 10`
+        `SELECT sc.id, sc.cash_difference, sc.closed_at AS created_at, b.name as branch_name, u.full_name as cashier_name
+         FROM shift_closings sc
+         LEFT JOIN branches b ON b.id = sc.branch_id
+         LEFT JOIN users u ON u.id = sc.cashier_id
+         WHERE sc.business_id = ? AND sc.cash_difference < 0 AND sc.reopened_at IS NULL
+         ORDER BY sc.closed_at DESC LIMIT 10`
       )
       .bind(authOrRes.user.business_id)
-      .all<{ id: string; cash_variance: number; created_at: string; branch_name: string; cashier_name: string }>();
+      .all<{ id: string; cash_difference: number; created_at: string; branch_name: string; cashier_name: string }>();
 
     for (const row of shortages.results ?? []) {
       flags.push({
         id: `flag-short-${row.id}`,
         type: "CASH_SHORTAGE",
-        severity: Math.abs(row.cash_variance) > 100 ? "high" : "medium",
+        severity: Math.abs(row.cash_difference) > 100 ? "high" : "medium",
         branch_name: row.branch_name || "Main Branch",
-        title: `Cash Shortage: -GH₵ ${Math.abs(row.cash_variance)}`,
+        title: `Cash Shortage: -GH₵ ${Math.abs(row.cash_difference)}`,
         description: `Shift closed by ${row.cashier_name || "Cashier"} with a cash shortage.`,
         created_at: row.created_at,
       });

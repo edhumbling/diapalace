@@ -100,26 +100,27 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const branchId = `br-${crypto.randomUUID()}`;
     const code = body.code?.trim().toUpperCase() || `BR-${Date.now().toString().slice(-4)}`;
 
-    await db
-      .prepare(
+    await db.batch([
+      db.prepare(
         `INSERT INTO branches (
           id, business_id, name, code, phone, email, region, city, address, digital_address, manager_id, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`
       )
-      .bind(
-        branchId,
-        authOrRes.user.business_id,
-        body.name.trim(),
-        code,
-        body.phone?.trim() ?? "",
-        body.email?.trim() ?? "",
-        body.region?.trim() ?? "Greater Accra Region",
-        body.city?.trim() ?? "Accra",
-        body.address?.trim() ?? "",
-        body.digitalAddress?.trim() ?? "",
-        body.managerId || ""
-      )
-      .run();
+        .bind(
+          branchId,
+          authOrRes.user.business_id,
+          body.name.trim(),
+          code,
+          body.phone?.trim() ?? "",
+          body.email?.trim() ?? "",
+          body.region?.trim() ?? "Greater Accra Region",
+          body.city?.trim() ?? "Accra",
+          body.address?.trim() ?? "",
+          body.digitalAddress?.trim() ?? "",
+          body.managerId || ""
+        ),
+      db.prepare("INSERT INTO registers (id, business_id, branch_id, name, status) VALUES (?, ?, ?, 'Register 01', 'active')").bind(`reg-${branchId}`, authOrRes.user.business_id, branchId),
+    ]);
 
     await logAudit(db, {
       business_id: authOrRes.user.business_id,

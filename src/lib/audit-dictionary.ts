@@ -40,6 +40,15 @@ const ACTION_DICTIONARY: Record<string, string> = {
   PAYMENT_RECONCILED: "Payment Reconciled",
   CASH_SHORTAGE: "Cash Drawer Shortage Logged",
 
+  // SHIFTS & CASH-UP
+  SHIFT_OPENED: "Shift Opened",
+  CASH_COUNT_SUBMITTED: "Cash Count Submitted",
+  CASH_UP_COMPLETED: "Cash-Up Completed",
+  CASH_SHORTAGE_REPORTED: "Cash Shortage Reported",
+  CASH_OVERAGE_REPORTED: "Cash Overage Reported",
+  CASH_UP_REOPENED: "Cash-Up Reopened",
+  CASH_UP_ACKNOWLEDGED: "Cash-Up Acknowledged",
+
   // INVENTORY
   STOCK_RECEIVED: "Inventory Stock Received",
   STOCK_ADJUSTMENT: "Inventory Adjusted",
@@ -102,6 +111,18 @@ const FIELD_DICTIONARY: Record<string, string> = {
   manager_id: "Assigned Manager",
   tax_enabled: "Tax Enabled",
   tax_rate: "Tax Rate (%)",
+  opening_cash: "Opening Cash",
+  expected_cash: "Expected Cash",
+  counted_cash: "Counted Cash",
+  cash_difference: "Cash Difference",
+  cash_variance: "Cash Difference",
+  difference_reason: "Difference Reason",
+  difference_explanation: "Difference Explanation",
+  register: "Register",
+  paymentMethods: "Payment Methods",
+  reason: "Reason",
+  explanation: "Explanation",
+  breakdown: "Payment Breakdown",
 };
 
 export function formatAuditActionTitle(action: string): string {

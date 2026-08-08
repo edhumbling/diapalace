@@ -66,6 +66,10 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     if (body.items.some((item) => !item.productId || !Number.isInteger(item.qty) || item.qty <= 0)) return Response.json({ error: "Sale quantities must be whole numbers greater than zero." }, { status: 400 });
 
     const db = context.env.diapalace_db;
+    const enabledMethods = await db.prepare("SELECT name FROM payment_methods WHERE enabled = 1").all<{ name: string }>();
+    if (!(enabledMethods.results ?? []).some((method) => method.name === body.method)) {
+      return Response.json({ error: `${body.method} is not enabled for this business. Ask the owner to enable it in Settings.` }, { status: 400 });
+    }
     const idempotencyKey = body.idempotencyKey?.trim();
     if (idempotencyKey) {
       const existing = await db.prepare("SELECT id, sale_id FROM receipts WHERE business_id = ? AND idempotency_key = ?").bind(authOrRes.user.business_id, idempotencyKey).first<{ id: string; sale_id: string }>();

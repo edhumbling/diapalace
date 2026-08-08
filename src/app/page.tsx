@@ -60,6 +60,7 @@ import { brand } from "@/lib/brand";
 import { defaultPosState, type CartItem, type Customer, type Expense, type PaymentMethod, type Product, type Purchase, type Sale } from "@/lib/pos-data";
 import { BulkOpeningInventoryModal, ProductEditorModal, StockCountModal, type BulkRow } from "@/app/inventory-modals";
 import { ReceiptScreen } from "@/app/receipt-components";
+import { CashUpView } from "@/app/cashup-components";
 import type { ReceiptData } from "@/lib/receipt-data";
 
 const ACTIVE_VIEW_STORAGE_KEY = "diapalace_active_view";
@@ -326,12 +327,11 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
   const [targetRefundSale, setTargetRefundSale] = useState<Sale | null>(null);
   const [overrideTargetDiscount, setOverrideTargetDiscount] = useState<number>(0);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
-  const [shiftOpen, setShiftOpen] = useState(true);
-  const [countedCash, setCountedCash] = useState(0);
-  const [countedMomo, setCountedMomo] = useState(0);
   const [taxEnabled, setTaxEnabled] = useState(defaultPosState.taxEnabled);
   const [taxRate, setTaxRate] = useState(defaultPosState.taxRate);
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(defaultPosState.paymentMethods);
   const [databaseStatus, setDatabaseStatus] = useState<"connecting" | "connected" | "offline">("connecting");
+  const [stateReload, setStateReload] = useState(0);
   const [pinDigits, setPinDigits] = useState(["", "", "", ""]);
   const [pinError, setPinError] = useState("");
   const userId = user?.id;
@@ -513,8 +513,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
   // ─── Fetch PosState ────────────────────────────────────────────────
   useEffect(() => {
     if (!token || !user) return;
-    let cancelled = false;
-    async function loadState() {
+    let cancelled = false;    async function loadState() {
       try {
         const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
         const branchId = currentBranch && currentBranch !== "all" ? currentBranch.id : "all";
@@ -529,6 +528,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
         setExpenses(state.expenses);
         setTaxEnabled(state.taxEnabled);
         setTaxRate(state.taxRate);
+        if (Array.isArray(state.paymentMethods) && state.paymentMethods.length > 0) setPaymentMethods(state.paymentMethods);
         setDatabaseStatus("connected");
       } catch {
         if (!cancelled) setDatabaseStatus("offline");
@@ -536,7 +536,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
     }
     void loadState();
     return () => { cancelled = true; };
-  }, [token, user, currentBranch]);
+  }, [token, user, currentBranch, stateReload]);
 
   // ─── Fetch Red Flags (Owner) ───────────────────────────────────────
   useEffect(() => {
@@ -624,7 +624,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
     if (role === "cashier") {
       return [
         { label: "Overview", items: [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard }] },
-        { label: "Operations", items: [{ id: "checkout", label: "New Sale", icon: ShoppingCart }, { id: "sales", label: "Sales", icon: ReceiptText }, { id: "reconciliation", label: "Cash-up", icon: Landmark }] },
+        { label: "Operations", items: [{ id: "checkout", label: "New Sale", icon: ShoppingCart }, { id: "sales", label: "Sales", icon: ReceiptText }, { id: "reconciliation", label: "Close Shift", icon: Landmark }] },
       ];
     }
 
@@ -640,7 +640,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
 
     const groups = [
       { label: "Overview", items: [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard }] },
-      { label: "Operations", items: [{ id: "checkout", label: "New Sale", icon: ShoppingCart }, { id: "sales", label: "Sales", icon: ReceiptText }, { id: "inventory", label: "Inventory", icon: PackageOpen }, { id: "reconciliation", label: "Cash-up", icon: Landmark }, { id: "transfers", label: "Stock Transfers", icon: Truck }] },
+      { label: "Operations", items: [{ id: "checkout", label: "New Sale", icon: ShoppingCart }, { id: "sales", label: "Sales", icon: ReceiptText }, { id: "inventory", label: "Inventory", icon: PackageOpen }, { id: "reconciliation", label: "Close Shift", icon: Landmark }, { id: "transfers", label: "Stock Transfers", icon: Truck }] },
       { label: "Insights", items: [
         { id: "reports", label: "Reports", icon: BarChart3 },
       ] },
@@ -673,10 +673,6 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
     return (product.name.toLowerCase().includes(term) || (product.description ?? "").toLowerCase().includes(term) || product.sku.toLowerCase().includes(term)) && (category === "All items" || product.category === category);
   });
   const lowStock = products.filter((product) => product.reorderAt > 0 && product.stock <= product.reorderAt);
-  const todaySales = sales.filter((sale) => sale.date.startsWith("Today"));
-  const cashSales = todaySales.filter((sale) => sale.method === "Cash").reduce((sum, sale) => sum + sale.total, 0);
-  const momoSales = todaySales.filter((sale) => sale.method.includes("MoMo") || sale.method.includes("Cash") === false && sale.method.includes("Card") === false).reduce((sum, sale) => sum + sale.total, 0);
-  const expectedCash = 250 + cashSales;
 
   // ─── Discount Cap Verification ─────────────────────────────────────
   const handleDiscountChange = (val: number) => {
@@ -1133,7 +1129,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
            {view === "sales" && <SalesView sales={sales} onNotify={notify} onVoid={(sale) => { setTargetVoidSale(sale); setModal("voidSale"); }} onRefund={(sale) => { setTargetRefundSale(sale); setModal("refundRequest"); }} onReprint={(sale) => void reprintReceipt(sale.id)} userRole={user.role} />}
           {view === "purchases" && <PurchasesView purchases={purchases} onAdd={() => setModal("purchase")} />}
           {view === "expenses" && <ExpensesView expenses={expenses} onAdd={() => setModal("expense")} />}
-          {view === "reconciliation" && <ReconciliationView sales={sales} shiftOpen={shiftOpen} setShiftOpen={setShiftOpen} expectedCash={expectedCash} expectedMomo={momoSales} countedCash={countedCash} setCountedCash={setCountedCash} countedMomo={countedMomo} setCountedMomo={setCountedMomo} onNotify={notify} currentUser={user.full_name} userRole={user.role} token={token} currentBranchId={currentBranch === "all" ? branches[0]?.id : currentBranch?.id} />}
+          {view === "reconciliation" && <CashUpView branchId={currentBranch === "all" ? branches[0]?.id || "" : currentBranch?.id || ""} userRole={user.role} userName={user.full_name} token={token} onNotify={notify} onShiftChanged={() => { void refreshDashboard(); setStateReload((key) => key + 1); }} />}
           {view === "reports" && <ReportsView sales={sales} products={products} expenses={expenses} />}
           {view === "employees" && (user.role === "cashier" || user.role === "stock_officer" ? <MyProfileView user={user} branches={branches} token={token} onNotify={notify} /> : <EmployeesView employees={employees} branches={branches} isOwner={isOwner} userRole={user.role} token={token} onAdd={() => setModal("addEmployee")} onEdit={(emp) => { setEditingEmployee(emp); setModal("editEmployee"); }} onRefresh={fetchEmployees} onNotify={notify} />)}
           {view === "branches" && (
@@ -1149,12 +1145,12 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
           )}
            {view === "audit" && <AuditLogView auditLogs={auditLogs} branches={branches} employees={employees} token={token} onNotify={notify} />}
            {view === "notifications" && <NotificationsView notifications={notifications} unreadCount={unreadNotificationCount} branches={branches} token={token} onRefresh={refreshNotifications} onUpdate={updateNotification} onOpen={openNotification} />}
-           {view === "settings" && <SettingsView taxEnabled={taxEnabled} setTaxEnabled={setTaxEnabled} taxRate={taxRate} setTaxRate={setTaxRate} onNotify={notify} businessName={activeBusinessName} />}
+           {view === "settings" && <SettingsView taxEnabled={taxEnabled} setTaxEnabled={setTaxEnabled} taxRate={taxRate} setTaxRate={setTaxRate} paymentMethods={paymentMethods} setPaymentMethods={setPaymentMethods} token={token} onNotify={notify} businessName={activeBusinessName} />}
         </main>
       </div>
 
       {/* ─── MODALS ────────────────────────────────────────────────── */}
-      {paymentOpen && <PaymentModal total={total} subtotal={subtotal} discount={discount} tax={tax} method={paymentMethod} setMethod={setPaymentMethod} cashReceived={cashReceived} setCashReceived={setCashReceived} reference={mobileReference} setReference={setMobileReference} onClose={() => setPaymentOpen(false)} onComplete={completeSale} />}
+      {paymentOpen && <PaymentModal total={total} subtotal={subtotal} discount={discount} tax={tax} method={paymentMethod} setMethod={setPaymentMethod} cashReceived={cashReceived} setCashReceived={setCashReceived} reference={mobileReference} setReference={setMobileReference} onClose={() => setPaymentOpen(false)} onComplete={completeSale} methods={paymentMethods} />}
       {modal === "product" && <ProductEditorModal onClose={() => setModal(null)} onSave={createProduct} />}
       {modal === "editProduct" && editingProduct && <ProductEditorModal product={editingProduct} onClose={() => { setEditingProduct(null); setModal(null); }} onSave={(product) => void updateProduct({ ...product, id: editingProduct.id })} />}
       {modal === "bulkInventory" && <BulkOpeningInventoryModal onClose={() => setModal(null)} onSave={(rows) => void importOpeningInventory(rows)} />}
@@ -1595,70 +1591,6 @@ function SalesView({ sales, onNotify, onVoid, onRefund, onReprint, userRole }: {
           ))}
         </DataTable>
       </section>
-    </>
-  );
-}
-
-// ─── RECONCILIATION VIEW WITH AUTO SHORTAGE CALCULATION ──────────────
-function ReconciliationView({ sales, shiftOpen, setShiftOpen, expectedCash, expectedMomo, countedCash, setCountedCash, countedMomo, setCountedMomo, onNotify, currentUser, userRole, token, currentBranchId }: { sales: Sale[]; shiftOpen: boolean; setShiftOpen: (value: boolean) => void; expectedCash: number; expectedMomo: number; countedCash: number; setCountedCash: (value: number) => void; countedMomo: number; setCountedMomo: (value: number) => void; onNotify: (message: string) => void; currentUser: string; userRole: Role; token: string | null; currentBranchId?: string }) {
-  const cashVariance = countedCash - expectedCash;
-  const momoVariance = countedMomo - expectedMomo;
-
-  const handleCloseShift = async () => {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      await fetch("/api/reconciliation/close", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          branchId: currentBranchId,
-          expectedCash,
-          countedCash,
-          expectedMomo,
-          countedMomo,
-        }),
-      });
-    } catch {
-      // quiet fallback
-    }
-    setShiftOpen(false);
-    onNotify(cashVariance < 0 ? `Shift closed. ⚠️ Cash shortage of GH₵ ${Math.abs(cashVariance)} logged.` : "Shift closed and reconciliation saved.");
-  };
-
-  return (
-    <>
-      <PageHeader eyebrow="End of shift" title="Cash-up & reconciliation" description="Cashiers submit physical counted totals. System expected figures are non-editable to prevent manipulation." action={<StatusPill tone={shiftOpen ? "success" : "neutral"}>{shiftOpen ? "Shift open" : "Shift closed"}</StatusPill>} />
-      <div className="cashup-layout">
-        <section className="panel cashup-main">
-          <div className="cashup-title"><span className="section-icon"><Landmark size={22} /></span><div><h2>Register 01 · Shift Closing</h2><p>{currentUser} ({userRole}) · Opened today at 8:00 AM</p></div></div>
-          <div className="cashup-breakdown">
-            <div><span>Opening float</span><strong>{money(250)}</strong><small>Cash in drawer at open</small></div>
-            <div><span>Expected Cash</span><strong>{money(expectedCash)}</strong><small>Opening float + cash sales (Read-only)</small></div>
-            <div><span>Expected MoMo</span><strong>{money(expectedMomo)}</strong><small>System recorded MoMo sales</small></div>
-          </div>
-          <div className="cash-count">
-            <label>Physical Cash Counted (GH₵)<input type="number" min="0" value={countedCash || ""} onChange={(event) => setCountedCash(Number(event.target.value) || 0)} placeholder="Enter physical cash in drawer" /></label>
-            <div className={`variance ${countedCash ? (cashVariance === 0 ? "even" : cashVariance > 0 ? "over" : "short") : "empty"}`}>
-              <span>{countedCash ? (cashVariance === 0 ? "Balanced" : cashVariance > 0 ? "Over" : "SHORTAGE") : "Awaiting count"}</span>
-              <strong>{countedCash ? `${cashVariance >= 0 ? "+" : "−"} ${money(Math.abs(cashVariance))}` : "—"}</strong>
-            </div>
-          </div>
-          <div className="cashup-actions">
-            <button className="button secondary" onClick={() => onNotify("Cash-up worksheet printed.")}><Printer size={17} /> Print worksheet</button>
-            <button className="button primary" disabled={!countedCash || !shiftOpen} onClick={handleCloseShift}>Submit Daily Closing <ArrowRight size={17} /></button>
-          </div>
-        </section>
-        <aside className="panel cashup-side">
-          <p className="eyebrow">Anti-fraud rules</p>
-          <h2>Strict Reconciliation</h2>
-          <ul className="check-list">
-            <li><span className="check okay"><Check size={15} /></span><span><strong>Immutable Expected Totals</strong><small>Cashiers cannot edit expected sales figures</small></span></li>
-            <li><span className="check okay"><Check size={15} /></span><span><strong>Automatic Shortage Logging</strong><small>Discrepancies automatically trigger owner alert</small></span></li>
-            <li><span className="check pending"><CircleAlert size={15} /></span><span><strong>MoMo Statement Match</strong><small>Compare MoMo drawer total against MTN statements</small></span></li>
-          </ul>
-        </aside>
-      </div>
     </>
   );
 }
@@ -2650,15 +2582,60 @@ function AuditEventDetailModal({ log, onClose }: { log: any; onClose: () => void
     </Modal>
   );
 }
-function SettingsView({ taxEnabled, setTaxEnabled, taxRate, setTaxRate, onNotify, businessName }: { taxEnabled: boolean; setTaxEnabled: (value: boolean) => void; taxRate: number; setTaxRate: (value: number) => void; onNotify: (message: string) => void; businessName: string }) { return <><PageHeader eyebrow="Control centre" title="Settings" description="Tune Dia&apos;s Palace to the way your shop works." /><div className="settings-grid"><section className="panel settings-card"><div className="settings-card-head"><span className="section-icon"><ReceiptText size={21} /></span><div><h2>Tax on receipts</h2><p>Keep tax treatment explicit at checkout.</p></div></div><div className="setting-row"><div><strong>Apply tax to new sales</strong><small>GRA lists a standard VAT rate of 15%. Confirm your registration and configure other levies with your accountant.</small></div><button className={`toggle ${taxEnabled ? "on" : ""}`} aria-label="Toggle tax" onClick={() => setTaxEnabled(!taxEnabled)}><span /></button></div>{taxEnabled && <label className="inline-field">Register rate (%)<input type="number" min="0" max="100" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value) || 0)} /></label>}</section><section className="panel settings-card"><div className="settings-card-head"><span className="section-icon orange"><Smartphone size={21} /></span><div><h2>Payment methods</h2><p>Methods available to this register.</p></div></div>{["Cash", "MTN MoMo", "Telecel Cash", "AirtelTigo Money", "Card / POS", "Bank transfer"].map((method) => <div className="setting-check" key={method}><span className="check okay"><Check size={15} /></span><strong>{method}</strong><span className="setting-ready">Enabled</span></div>)}</section><section className="panel settings-card"><div className="settings-card-head"><span className="section-icon green"><Store size={21} /></span><div><h2>Store profile</h2><p>Printed on receipts and staff screens.</p></div></div><label>Business name<input defaultValue={businessName} /></label><label>Store location<input defaultValue="Accra, Ghana" /></label><label>Receipt footer<input defaultValue={`Thank you for shopping with ${businessName}.`} /></label><button className="button primary small" onClick={() => onNotify("Store profile saved.")}>Save profile</button></section></div></>; }
+function SettingsView({ taxEnabled, setTaxEnabled, taxRate, setTaxRate, paymentMethods, setPaymentMethods, token, onNotify, businessName }: { taxEnabled: boolean; setTaxEnabled: (value: boolean) => void; taxRate: number; setTaxRate: (value: number) => void; paymentMethods: string[]; setPaymentMethods: (value: string[]) => void; token: string | null; onNotify: (message: string) => void; businessName: string }) {
+  const DEFAULT_METHODS = ["Cash", "MTN MoMo", "Telecel Cash", "AirtelTigo Money", "Card / POS", "Bank transfer"];
+  const catalog = Array.from(new Set([...DEFAULT_METHODS, ...paymentMethods]));
+  const [draft, setDraft] = useState<string[]>(paymentMethods);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { setDraft(paymentMethods); setSaved(false); }, [paymentMethods]);
+  const handleSave = async () => {
+    setSaving(true); setSaveError(""); setSaved(false);
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ taxEnabled, taxRate, paymentMethods: draft.map((name) => ({ name, enabled: true })) }),
+      });
+      const data = (await response.json()) as { error?: string; paymentMethods?: string[] };
+      if (!response.ok) { setSaveError(data.error || "Settings could not be saved. No changes were made."); return; }
+      setPaymentMethods(data.paymentMethods ?? draft);
+      setSaved(true);
+      onNotify("Settings saved.");
+    } catch {
+      setSaveError("Settings could not be saved. No changes were made. Please try again.");
+    } finally { setSaving(false); }
+  };
+  return <><PageHeader eyebrow="Control centre" title="Settings" description="Tune Dia&apos;s Palace to the way your shop works." /><div className="settings-grid"><section className="panel settings-card"><div className="settings-card-head"><span className="section-icon"><ReceiptText size={21} /></span><div><h2>Tax on receipts</h2><p>Keep tax treatment explicit at checkout.</p></div></div><div className="setting-row"><div><strong>Apply tax to new sales</strong><small>GRA lists a standard VAT rate of 15%. Confirm your registration and configure other levies with your accountant.</small></div><button className={`toggle ${taxEnabled ? "on" : ""}`} aria-label="Toggle tax" onClick={() => setTaxEnabled(!taxEnabled)}><span /></button></div>{taxEnabled && <label className="inline-field">Register rate (%)<input type="number" min="0" max="100" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value) || 0)} /></label>}</section><section className="panel settings-card"><div className="settings-card-head"><span className="section-icon orange"><Smartphone size={21} /></span><div><h2>Payment methods</h2><p>Methods available to this register.</p></div></div>{catalog.map((method) => { const enabled = draft.includes(method); return <div className="setting-row" key={method}><div><strong>{method}</strong><small>{enabled ? "Available at checkout and included in cash-up expected figures." : "Hidden from checkout. Cash-up expected figures will ignore it."}</small></div><button className={`toggle ${enabled ? "on" : ""}`} aria-label={`Toggle ${method}`} onClick={() => setDraft(enabled ? draft.filter((item) => item !== method) : [...draft, method])}><span /></button></div>; })}{saveError && <div className="auth-error">{saveError}</div>}<div className="setting-actions"><button className="button primary small" disabled={saving} onClick={() => void handleSave()}>{saving ? "Saving…" : "Save changes"}</button>{saved && <span className="setting-ready"><Check size={14} /> Saved</span>}</div></section><section className="panel settings-card"><div className="settings-card-head"><span className="section-icon green"><Store size={21} /></span><div><h2>Store profile</h2><p>Printed on receipts and staff screens.</p></div></div><label>Business name<input defaultValue={businessName} /></label><label>Store location<input defaultValue="Accra, Ghana" /></label><label>Receipt footer<input defaultValue={`Thank you for shopping with ${businessName}.`} /></label><button className="button primary small" onClick={() => onNotify("Store profile saved.")}>Save profile</button></section></div></>;
+}
 
 function Metric({ label, value, icon, tone = "default" }: { label: string; value: string; icon: React.ReactNode; tone?: string }) { return <div className={`metric ${tone}`}><span className="metric-icon">{icon}</span><div><span>{label}</span><strong>{value}</strong></div></div>; }
 function DataTable({ headers, children }: { headers: string[]; children: React.ReactNode }) { return <div className="table-scroll"><table><thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>; }
 function PaymentBadge({ method }: { method: PaymentMethod }) { const Icon = method === "Cash" ? Banknote : method === "Card / POS" ? CreditCard : method === "Bank transfer" ? Landmark : method === "Credit" ? WalletCards : Smartphone; return <span className="payment-badge"><Icon size={14} />{method}</span>; }
 
-function PaymentModal({ total, subtotal, discount, tax, method, setMethod, cashReceived, setCashReceived, reference, setReference, onClose, onComplete }: { total: number; subtotal: number; discount: number; tax: number; method: PaymentMethod; setMethod: (value: PaymentMethod) => void; cashReceived: number; setCashReceived: (value: number) => void; reference: string; setReference: (value: string) => void; onClose: () => void; onComplete: () => void }) { const methods: PaymentMethod[] = ["Cash", "MTN MoMo", "Telecel Cash", "AirtelTigo Money", "Card / POS", "Bank transfer", "Credit"]; return <Modal title="Take payment" eyebrow="Checkout · final step" onClose={onClose}><div className="payment-total"><span>Total due</span><strong>{money(total)}</strong></div><div className="payment-methods">{methods.map((item) => <button key={item} className={method === item ? "active" : ""} onClick={() => setMethod(item)}><PaymentBadge method={item} /><Check size={16} /></button>)}</div>{method === "Cash" ? <div className="payment-input"><label>Cash received<input autoFocus type="number" min={total} value={cashReceived || ""} onChange={(event) => setCashReceived(Number(event.target.value) || 0)} placeholder={money(total)} /></label><div className="change-due"><span>Change due</span><strong>{money(Math.max(0, cashReceived - total))}</strong></div></div> : method === "Credit" ? <div className="credit-note"><WalletCards size={20} /><p>This sale will be added to the customer&apos;s credit balance. Make sure a customer is selected before completing.</p></div> : <label>Payment reference (Mandatory for MoMo / Card)<input autoFocus value={reference} onChange={(event) => setReference(event.target.value)} placeholder={method.includes("MoMo") || method.includes("Cash") ? "e.g. MTN MoMo Txn ID 20491823" : "e.g. POS terminal transaction ref"} /></label>}<div className="payment-breakdown"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>{discount > 0 && <div><span>Discount</span><strong>− {money(discount)}</strong></div>}<div><span>Tax</span><strong>{money(tax)}</strong></div></div><button className="button primary full" onClick={onComplete}><Check size={18} /> Complete sale</button><p className="modal-note">A receipt number will be generated automatically.</p></Modal>; }
-
-function ProductModal({ onClose, onSave }: { onClose: () => void; onSave: (product: Omit<Product, "id">) => void }) { const [form, setForm] = useState({ name: "", sku: "", category: "Apparel", price: "", cost: "", stock: "", reorderAt: "5", unit: "piece" }); const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value })); return <Modal title="Add product" eyebrow="Inventory" onClose={onClose}><div className="form-grid"><label className="wide">Product name<input autoFocus value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="e.g. Cotton shirt" /></label><label>SKU or barcode<input value={form.sku} onChange={(event) => update("sku", event.target.value)} placeholder="DP-0000" /></label><label>Category<select value={form.category} onChange={(event) => update("category", event.target.value)}><option>Apparel</option><option>Accessories</option><option>Dresses</option><option>Jewellery</option><option>Other</option></select></label><label>Sell price (GH₵)<input type="number" value={form.price} onChange={(event) => update("price", event.target.value)} placeholder="0.00" /></label><label>Cost price (GH₵)<input type="number" value={form.cost} onChange={(event) => update("cost", event.target.value)} placeholder="0.00" /></label><label>Opening quantity<input type="number" value={form.stock} onChange={(event) => update("stock", event.target.value)} placeholder="0" /></label><label>Reorder alert at<input type="number" value={form.reorderAt} onChange={(event) => update("reorderAt", event.target.value)} /></label><label>Unit<select value={form.unit} onChange={(event) => update("unit", event.target.value)}><option>piece</option><option>pair</option><option>pack</option><option>box</option></select></label></div><div className="modal-actions"><button className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={!form.name || !form.price} onClick={() => onSave({ name: form.name, sku: form.sku || `DP-${Date.now().toString().slice(-4)}`, category: form.category, price: Number(form.price), cost: Number(form.cost) || 0, stock: Number(form.stock) || 0, reorderAt: Number(form.reorderAt) || 5, unit: form.unit })}>Add product</button></div></Modal>; }
+function PaymentModal({ total, subtotal, discount, tax, method, setMethod, cashReceived, setCashReceived, reference, setReference, onClose, onComplete, methods: enabledMethods }: { total: number; subtotal: number; discount: number; tax: number; method: PaymentMethod; setMethod: (value: PaymentMethod) => void; cashReceived: number; setCashReceived: (value: number) => void; reference: string; setReference: (value: string) => void; onClose: () => void; onComplete: () => void; methods?: string[] }) {
+  const methods: PaymentMethod[] = ((enabledMethods && enabledMethods.length > 0 ? enabledMethods : ["Cash", "MTN MoMo", "Telecel Cash", "AirtelTigo Money", "Card / POS", "Bank transfer"]) as PaymentMethod[]);
+  useEffect(() => {
+    if (methods.length > 0 && !methods.includes(method)) setMethod(methods[0]);
+  }, [methods, method, setMethod]);
+  return (
+    <Modal title="Take payment" eyebrow="Checkout · final step" onClose={onClose}>
+      <div className="payment-total"><span>Total due</span><strong>{money(total)}</strong></div>
+      <div className="payment-methods">{methods.map((item) => <button key={item} className={method === item ? "active" : ""} onClick={() => setMethod(item)}><PaymentBadge method={item} /><Check size={16} /></button>)}</div>
+      {method === "Cash" ? (
+        <div className="payment-input"><label>Cash received<input autoFocus type="number" min={total} value={cashReceived || ""} onChange={(event) => setCashReceived(Number(event.target.value) || 0)} placeholder={money(total)} /></label><div className="change-due"><span>Change due</span><strong>{money(Math.max(0, cashReceived - total))}</strong></div></div>
+      ) : method === "Credit" ? (
+        <div className="credit-note"><WalletCards size={20} /><p>This sale will be added to the customer&apos;s credit balance. Make sure a customer is selected before completing.</p></div>
+      ) : (
+        <label>Payment reference (Mandatory for MoMo / Card)<input autoFocus value={reference} onChange={(event) => setReference(event.target.value)} placeholder={method.includes("MoMo") || method.includes("Cash") ? "e.g. MTN MoMo Txn ID 20491823" : "e.g. POS terminal transaction ref"} /></label>
+      )}
+      <div className="payment-breakdown"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>{discount > 0 && <div><span>Discount</span><strong>- {money(discount)}</strong></div>}<div><span>Tax</span><strong>{money(tax)}</strong></div></div>
+      <button className="button primary full" onClick={onComplete}><Check size={18} /> Complete sale</button>
+      <p className="modal-note">A receipt number will be generated automatically.</p>
+    </Modal>
+  );
+}function ProductModal({ onClose, onSave }: { onClose: () => void; onSave: (product: Omit<Product, "id">) => void }) { const [form, setForm] = useState({ name: "", sku: "", category: "Apparel", price: "", cost: "", stock: "", reorderAt: "5", unit: "piece" }); const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value })); return <Modal title="Add product" eyebrow="Inventory" onClose={onClose}><div className="form-grid"><label className="wide">Product name<input autoFocus value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="e.g. Cotton shirt" /></label><label>SKU or barcode<input value={form.sku} onChange={(event) => update("sku", event.target.value)} placeholder="DP-0000" /></label><label>Category<select value={form.category} onChange={(event) => update("category", event.target.value)}><option>Apparel</option><option>Accessories</option><option>Dresses</option><option>Jewellery</option><option>Other</option></select></label><label>Sell price (GH₵)<input type="number" value={form.price} onChange={(event) => update("price", event.target.value)} placeholder="0.00" /></label><label>Cost price (GH₵)<input type="number" value={form.cost} onChange={(event) => update("cost", event.target.value)} placeholder="0.00" /></label><label>Opening quantity<input type="number" value={form.stock} onChange={(event) => update("stock", event.target.value)} placeholder="0" /></label><label>Reorder alert at<input type="number" value={form.reorderAt} onChange={(event) => update("reorderAt", event.target.value)} /></label><label>Unit<select value={form.unit} onChange={(event) => update("unit", event.target.value)}><option>piece</option><option>pair</option><option>pack</option><option>box</option></select></label></div><div className="modal-actions"><button className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={!form.name || !form.price} onClick={() => onSave({ name: form.name, sku: form.sku || `DP-${Date.now().toString().slice(-4)}`, category: form.category, price: Number(form.price), cost: Number(form.cost) || 0, stock: Number(form.stock) || 0, reorderAt: Number(form.reorderAt) || 5, unit: form.unit })}>Add product</button></div></Modal>; }
 function CustomerModal({ onClose, onSave }: { onClose: () => void; onSave: (customer: Omit<Customer, "id" | "credit" | "visits">) => void }) { const [name, setName] = useState(""); const [phone, setPhone] = useState(""); return <Modal title="Add customer" eyebrow="Customer book" onClose={onClose}><div className="form-grid"><label className="wide">Full name<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Akosua Mensah" /></label><label className="wide">Phone number<input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="024 000 0000" /></label></div><div className="modal-actions"><button className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={!name} onClick={() => onSave({ name, phone })}>Create profile</button></div></Modal>; }
 function PurchaseModal({ onClose, onSave }: { onClose: () => void; onSave: (purchase: Omit<Purchase, "id">) => void }) { const [supplier, setSupplier] = useState(""); const [amount, setAmount] = useState(""); const [status, setStatus] = useState<Purchase["status"]>("Pending"); return <Modal title="Record purchase" eyebrow="Supplier desk" onClose={onClose}><div className="form-grid"><label className="wide">Supplier name<input autoFocus value={supplier} onChange={(event) => setSupplier(event.target.value)} placeholder="e.g. Accra Apparel Hub" /></label><label>Amount (GH₵)<input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></label><label>Order status<select value={status} onChange={(event) => setStatus(event.target.value as Purchase["status"])}><option>Pending</option><option>Received</option></select></label></div><div className="modal-actions"><button className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={!supplier || !amount} onClick={() => onSave({ supplier, amount: Number(amount), status, date: "Today" })}>Save purchase</button></div></Modal>; }
 function ExpenseModal({ onClose, onSave }: { onClose: () => void; onSave: (expense: Omit<Expense, "id">) => void }) { const [description, setDescription] = useState(""); const [category, setCategory] = useState("Utilities"); const [amount, setAmount] = useState(""); return <Modal title="Add expense" eyebrow="Operating costs" onClose={onClose}><div className="form-grid"><label className="wide">Description<input autoFocus value={description} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Shop electricity" /></label><label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>Utilities</option><option>Logistics</option><option>Supplies</option><option>Rent</option><option>Other</option></select></label><label>Amount (GH₵)<input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></label></div><div className="modal-actions"><button className="button secondary" onClick={onClose}>Cancel</button><button className="button primary" disabled={!description || !amount} onClick={() => onSave({ description, category, amount: Number(amount), date: "Today" })}>Save expense</button></div></Modal>; }

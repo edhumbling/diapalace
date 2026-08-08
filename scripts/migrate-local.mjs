@@ -65,4 +65,10 @@ INSERT OR IGNORE INTO user_branches (id, user_id, branch_id) VALUES
   ('ub-kofi-osu', 'u-kofi', 'br-osu'),
   ('ub-yaw-osu', 'u-yaw', 'br-osu');`);
 
+const migration010 = readFileSync("migrations/010_shift_workflow.sql", "utf8");
+const migrationStatements = migration010.split(";").map((item) => item.trim()).filter(Boolean);
+for (let index = 0; index < migrationStatements.length; index += 5) {
+  execute(migrationStatements.slice(index, index + 5).join(";\n"), true);
+}
+
 console.log("Local D1 is initialized in Wrangler's default .wrangler/state directory. Use the demo usernames from the login screen.");

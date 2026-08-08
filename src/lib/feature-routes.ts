@@ -27,7 +27,7 @@ export const FEATURE_ROUTES: FeatureRoute[] = [
   { category: "Operations", label: "New Sale", path: "/sell/checkout", view: "checkout" },
   { category: "Operations", label: "Sales", path: "/understand/sales", view: "sales" },
   { category: "Operations", label: "Inventory", path: "/manage/inventory", view: "inventory" },
-  { category: "Operations", label: "Cash-up", path: "/understand/reconciliation", view: "reconciliation" },
+  { category: "Operations", label: "Close Shift", path: "/understand/reconciliation", view: "reconciliation" },
   { category: "Operations", label: "Stock Transfers", path: "/manage/transfers", view: "transfers" },
   { category: "Insights", label: "Reports", path: "/understand/reports", view: "reports" },
   { category: "Management", label: "Employees", path: "/administration/employees", view: "employees" },

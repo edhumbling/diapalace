@@ -51,7 +51,7 @@ export async function getPosState(db: D1Database, branchId?: string | null): Pro
   const expenseScope = branchId ? " WHERE branch_id = ?" : "";
   const scopeParams = branchId ? [branchId] : [];
 
-  const [products, customers, sales, saleItems, purchases, expenses, settings] = await Promise.all([
+  const [products, customers, sales, saleItems, purchases, expenses, settings, paymentMethods] = await Promise.all([
     db.prepare(`SELECT p.id, p.name, COALESCE(p.description, '') AS description, p.sku, c.name AS category, p.selling_price AS price, p.cost_price AS cost, p.stock_quantity AS stock, p.reorder_level AS reorder_at, p.unit FROM products p JOIN categories c ON c.id = p.category_id${productScope} ORDER BY p.name`).bind(...scopeParams).all<ProductRow>(),
     db.prepare("SELECT id, name, phone, credit_balance AS credit, visit_count AS visits FROM customers ORDER BY name").all<CustomerRow>(),
     db.prepare(`SELECT s.id, s.invoice_number, s.created_at, s.total, COALESCE(pay.method, 'Cash') AS method, COALESCE(c.name, 'Walk-in Customer') AS customer, COALESCE(u.full_name, 'Staff') AS operator FROM sales s LEFT JOIN customers c ON c.id = s.customer_id LEFT JOIN users u ON u.id = s.cashier_id LEFT JOIN payments pay ON pay.sale_id = s.id${salesScope} ORDER BY s.created_at DESC`).bind(...scopeParams).all<SaleRow>(),
@@ -59,6 +59,7 @@ export async function getPosState(db: D1Database, branchId?: string | null): Pro
     db.prepare(`SELECT id, supplier_name AS supplier, purchase_date AS date, amount, status FROM purchases${purchaseScope} ORDER BY purchase_date DESC`).bind(...scopeParams).all<PurchaseRow>(),
     db.prepare(`SELECT id, description, category, expense_date AS date, amount FROM expenses${expenseScope} ORDER BY expense_date DESC`).bind(...scopeParams).all<ExpenseRow>(),
     db.prepare("SELECT key, value FROM settings WHERE key IN ('tax_enabled', 'tax_rate')").all<{ key: string; value: string }>(),
+    db.prepare("SELECT name FROM payment_methods WHERE enabled = 1 ORDER BY name").all<{ name: string }>(),
   ]);
 
   const itemRows = saleItems.results ?? [];
@@ -77,5 +78,6 @@ export async function getPosState(db: D1Database, branchId?: string | null): Pro
     expenses: expenses.results ?? [],
     taxEnabled: settingsMap.get("tax_enabled") === "1",
     taxRate: Number(settingsMap.get("tax_rate") ?? 15),
+    paymentMethods: (paymentMethods.results ?? []).map((method) => method.name),
   };
 }
