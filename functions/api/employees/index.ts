@@ -26,16 +26,21 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
 
     const db = context.env.diapalace_db;
 
+    const isOwner = authOrRes.user.role === "owner";
+    const branchClause = isOwner ? "" : ` AND u.id IN (SELECT ub.user_id FROM user_branches ub WHERE ub.branch_id IN (${authOrRes.branches.map(() => "?").join(",") || "NULL"}))`;
+    const branchParams = isOwner ? [] : authOrRes.branches.map((branch) => branch.id);
+
     const query = `
       SELECT u.id, u.business_id, u.full_name, u.username, u.phone, u.role, u.status, u.force_password_change, u.created_at, u.last_login,
              GROUP_CONCAT(ub.branch_id) as branch_ids
       FROM users u
       LEFT JOIN user_branches ub ON ub.user_id = u.id
+      WHERE u.business_id = ? ${branchClause}
       GROUP BY u.id
       ORDER BY u.created_at DESC
     `;
 
-    const employeesRes = await db.prepare(query).all<EmployeeRow>();
+    const employeesRes = await db.prepare(query).bind(authOrRes.user.business_id, ...branchParams).all<EmployeeRow>();
 
     const dbEmployees = (employeesRes.results ?? []).map((emp) => ({
       id: emp.id,

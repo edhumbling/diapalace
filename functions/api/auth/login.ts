@@ -91,7 +91,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       db.prepare("UPDATE users SET last_login = ? WHERE id = ?").bind(now, userRow.id),
     ]);
 
-    const authContext = await validateSession(db, token);
+    const authContext = await validateSession(db, token, { host: new URL(context.request.url).hostname });
     if (!authContext) {
       return Response.json({ error: "Unable to establish session." }, { status: 500 });
     }

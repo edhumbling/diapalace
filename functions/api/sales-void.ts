@@ -28,6 +28,10 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       return Response.json({ error: "Sale transaction not found." }, { status: 404 });
     }
 
+    if (authOrRes.user.role !== "owner" && !authOrRes.branches.some((branch) => branch.id === sale.branch_id)) {
+      return Response.json({ error: "You are not allowed to void transactions recorded at other branches." }, { status: 403 });
+    }
+
     if (sale.status === "VOID") {
       return Response.json({ error: "Transaction is already voided." }, { status: 400 });
     }

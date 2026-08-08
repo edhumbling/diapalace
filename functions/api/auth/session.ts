@@ -11,7 +11,7 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
       return Response.json({ authenticated: false });
     }
 
-    const session = await validateSession(context.env.diapalace_db, token);
+    const session = await validateSession(context.env.diapalace_db, token, { host: new URL(context.request.url).hostname });
     if (!session) {
       return Response.json({ authenticated: false });
     }
