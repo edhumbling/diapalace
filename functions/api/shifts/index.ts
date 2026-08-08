@@ -111,6 +111,12 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
       }
     }
 
+    const registerBusy = await db
+      .prepare("SELECT id FROM shifts WHERE business_id = ? AND branch_id = ? AND status = 'OPEN' LIMIT 1")
+      .bind(authOrRes.user.business_id, branchId)
+      .first<{ id: string }>();
+    const anyOpenShift = Boolean(registerBusy);
+
     return Response.json({
       branchId,
       branchName: branchRow?.name || "Branch",
@@ -119,7 +125,7 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
       openShifts: (openRows.results ?? []).map((row) => shiftPayload(row, { registerName: row.register_name, cashierName: row.cashier_name })),
       closings,
       current,
-      canOpenShift: isOwner || isManager || isCashier,
+      canOpenShift: (isOwner || isManager || isCashier) && !anyOpenShift,
       canReopen: isOwner,
       canAcknowledge: isOwner || isManager,
     });

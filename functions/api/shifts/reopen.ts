@@ -35,7 +35,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const branchName = authOrRes.branches.find((branch) => branch.id === closing.branch_id)?.name || "Branch";
 
     await db.batch([
-      db.prepare("UPDATE shifts SET status = 'OPEN', reopened_at = ?, reopened_by_id = ?, reopened_reason = ? WHERE id = ?").bind(reopenedAt, authOrRes.user.id, reason, shift.id),
+      db.prepare("UPDATE shifts SET status = 'OPEN' WHERE id = ?").bind(shift.id),
       db.prepare("UPDATE shift_closings SET reopened_at = ?, reopened_by_id = ?, reopened_reason = ? WHERE id = ?").bind(reopenedAt, authOrRes.user.id, reason, closing.id),
     ]);
 

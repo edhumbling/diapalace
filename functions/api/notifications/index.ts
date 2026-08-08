@@ -70,12 +70,12 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
     const result = await context.env.diapalace_db
       .prepare(
         `SELECT n.id, n.business_id, n.branch_id, b.name as branch_name, n.recipient_user_id, n.category, n.type, n.severity,
-                title, message, entity_type, entity_id, action_url, status, metadata,
-                created_at, read_at, acknowledged_at, actioned_at, resolved_at, dismissed_at
+                n.title, n.message, n.entity_type, n.entity_id, n.action_url, n.status, n.metadata,
+                n.created_at, n.read_at, n.acknowledged_at, n.actioned_at, n.resolved_at, n.dismissed_at
          FROM notifications n
          LEFT JOIN branches b ON b.id = n.branch_id
          WHERE ${conditions.join(" AND ")}
-         ORDER BY CASE severity WHEN 'CRITICAL' THEN 0 WHEN 'WARNING' THEN 1 ELSE 2 END, created_at DESC
+         ORDER BY CASE n.severity WHEN 'CRITICAL' THEN 0 WHEN 'WARNING' THEN 1 ELSE 2 END, n.created_at DESC
          LIMIT ?`
       )
       .bind(...bindings, limit)
