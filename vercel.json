@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://diapalace.pages.dev/api/:path*"
+    }
+  ]
+}
