@@ -21,6 +21,8 @@ import {
   Clock3,
   CreditCard,
   Download,
+  Eye,
+  EyeOff,
   Filter,
   KeyRound,
   Landmark,
@@ -54,6 +56,7 @@ import {
 } from "lucide-react";
 
 import { useAuth, type AuthBranch, type AuthUser, type Role, DEMO_BUSINESS, DEMO_USERS } from "@/lib/auth-context";
+import { brand } from "@/lib/brand";
 import { defaultPosState, type CartItem, type Customer, type Expense, type PaymentMethod, type Product, type Purchase, type Sale } from "@/lib/pos-data";
 import { BulkOpeningInventoryModal, ProductEditorModal, StockCountModal, type BulkRow } from "@/app/inventory-modals";
 import { ReceiptScreen } from "@/app/receipt-components";
@@ -587,7 +590,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
     return (
       <div className="auth-page">
         <div className="auth-card" style={{ textAlign: "center", padding: "3rem 2rem" }}>
-          <span className="brand-mark" style={{ margin: "0 auto 1rem", width: "3rem", height: "3rem", fontSize: "1.8rem" }}>D</span>
+          <img src={brand.logo} alt={brand.businessName} className="brand-logo" style={{ width: "3rem", height: "3rem", margin: "0 auto 1rem" }} />
           <h2 style={{ color: "#fff" }}>Dia&apos;s Palace POS</h2>
           <p style={{ color: "#9eb0c1", fontSize: ".85rem", marginTop: ".5rem" }}>Loading your retail environment...</p>
         </div>
@@ -955,7 +958,7 @@ export default function Home({ initialView }: { initialView?: View } = {}) {
       {/* ─── SIDEBAR ──────────────────────────────────────────────── */}
       <aside className={`sidebar ${mobileNavOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
-          <span className="brand-mark">{activeBusinessName[0]}</span>
+          <img src={brand.logo} alt={brand.businessName} className="brand-logo" style={{ width: "2.15rem", height: "2.15rem", objectFit: "contain" }} />
           <span><strong>{activeBusinessName}</strong><small>Retail Operations</small></span>
           <IconButton label="Close menu" onClick={() => setMobileNavOpen(false)}><X size={19} /></IconButton>
         </div>
@@ -3043,4 +3046,92 @@ function DeactivateBranchModal({ branch, token, onClose, onSuccess }: { branch: 
   );
 }
 
-function AuthScreen({ onLoginSuccess, notify }: { onLoginSuccess: (token: string, user: AuthUser, business: any, branches: AuthBranch[]) => void; notify: (msg: string) => void }) { const [username, setUsername] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [submitting, setSubmitting] = useState(false); const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); setError(""); setSubmitting(true); const cleanUsername = username.trim().toLowerCase(); const localDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"; try { const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: cleanUsername, password }) }); if (response.ok) { const data = (await response.json()) as { error?: string; token: string; user: AuthUser; business: any; branches: AuthBranch[] }; onLoginSuccess(data.token, data.user, data.business, data.branches); notify(`Welcome back, ${data.user.full_name}!`); return; } if (response.status === 401 || response.status === 403) { const data = (await response.json()) as { error?: string }; if (!localDevelopment) { setError(data.error || "Invalid username or password."); return; } } } catch { /* quiet fallback */ } const demoAccount = DEMO_USERS[cleanUsername]; if (localDevelopment && demoAccount && password.length > 0) { const token = `s_local_${cleanUsername}_${Date.now()}`; onLoginSuccess(token, demoAccount.user, DEMO_BUSINESS, demoAccount.branches); notify(`Welcome back, ${demoAccount.user.full_name}!`); } else { setError("Invalid username or password."); } setSubmitting(false); }; return <div className="auth-page"><div className="auth-card"><div className="auth-brand"><span className="brand-mark">D</span><h2>Dia&apos;s Palace POS</h2></div><div className="auth-head"><h1>Welcome Back</h1><p>Enter your account credentials to access the register</p></div>{error && <div className="auth-error" style={{ marginBottom: "1rem" }}>{error}</div>}<form className="auth-form" onSubmit={handleSubmit}><label>Username<input required autoFocus value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. jordanlee" /></label><label>Password<input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" /></label><label className="auth-checkbox"><input type="checkbox" defaultChecked /> Remember this device</label><button className="button primary full" disabled={submitting} style={{ marginTop: ".5rem" }}>{submitting ? "Signing in..." : "LOGIN"}</button></form></div></div>; }
+function AuthScreen({ onLoginSuccess, notify }: { onLoginSuccess: (token: string, user: AuthUser, business: any, branches: AuthBranch[], remember: boolean) => void; notify: (msg: string) => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError("");
+    setSubmitting(true);
+    const cleanUsername = username.trim().toLowerCase();
+    const localDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: cleanUsername, password, remember }),
+      });
+      if (response.ok) {
+        const data = (await response.json()) as { error?: string; token: string; user: AuthUser; business: any; branches: AuthBranch[] };
+        onLoginSuccess(data.token, data.user, data.business, data.branches, remember);
+        notify(`Welcome back, ${data.user.full_name}!`);
+        return;
+      }
+      if (response.status === 401 || response.status === 403) {
+        if (!localDevelopment) {
+          setError("Incorrect username or password.");
+          return;
+        }
+      } else if (!localDevelopment) {
+        setError("We couldn't sign you in right now. Please try again.");
+        return;
+      }
+    } catch {
+      if (!localDevelopment) {
+        setError("We couldn't sign you in right now. Please try again.");
+        return;
+      }
+    }
+    const demoAccount = DEMO_USERS[cleanUsername];
+    if (localDevelopment && demoAccount && password.length > 0) {
+      const token = `s_local_${cleanUsername}_${Date.now()}`;
+      onLoginSuccess(token, demoAccount.user, DEMO_BUSINESS, demoAccount.branches, remember);
+      notify(`Welcome back, ${demoAccount.user.full_name}!`);
+    } else {
+      setError("Incorrect username or password.");
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="auth-page">
+      <div className="auth-visual" aria-hidden="true">
+        <img src={brand.storefrontImage} alt="" />
+        <div className="auth-visual-overlay" />
+        <div className="auth-visual-brand">
+          <img src={brand.logo} alt={brand.businessName} />
+          <p>Beauty · Skincare · Haircare · Fashion &amp; Everyday Essentials</p>
+        </div>
+      </div>
+      <div className="auth-panel">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <img src={brand.logo} alt={brand.businessName} />
+          </div>
+          <div className="auth-head">
+            <h1>Welcome Back</h1>
+            <p>Enter your account credentials to access the register</p>
+          </div>
+          {error && <div className="auth-error" style={{ marginBottom: "1rem" }}>{error}</div>}
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <label>Username<input required autoFocus value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. jordanlee" autoComplete="username" /></label>
+            <label>Password
+              <span className="password-wrap">
+                <input required type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+                <button type="button" className="password-toggle" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((shown) => !shown)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+              </span>
+            </label>
+            <label className="auth-checkbox"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me on this device</label>
+            <button className="button primary full" disabled={submitting} style={{ marginTop: ".5rem" }}>{submitting ? "Signing in..." : "LOGIN"}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

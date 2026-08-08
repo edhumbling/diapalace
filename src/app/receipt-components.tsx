@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Download, Printer, X } from "lucide-react";
 import type { ReceiptData, ReceiptWidth } from "@/lib/receipt-data";
+import { brand } from "@/lib/brand";
 
 const receiptMoney = (value: number) => value.toFixed(2);
 
@@ -13,7 +14,7 @@ function receiptDate(value: string) {
 
 export function ReceiptPreview({ receipt, width = "58mm" }: { receipt: ReceiptData; width?: ReceiptWidth }) {
   return <div className={`receipt-paper receipt-${width === "80mm" ? "80" : "58"}`}>
-    <header className="receipt-head"><strong>{receipt.businessName}</strong><span>Retail Operations</span><span>{receipt.branchName}</span>{receipt.businessPhone && <span>Tel: {receipt.businessPhone}</span>}{receipt.branchAddress && <span>{receipt.branchAddress}</span>}</header>
+    <header className="receipt-head"><img src={brand.logo} alt="" className="receipt-logo" /><strong>{receipt.businessName}</strong><span>Retail Operations</span><span>{receipt.branchName}</span>{receipt.businessPhone && <span>Tel: {receipt.businessPhone}</span>}{receipt.branchAddress && <span>{receipt.branchAddress}</span>}</header>
     <div className="receipt-rule" />
     <div className="receipt-meta"><span>Receipt: <strong>#{receipt.receiptNumber}</strong></span><span>{receiptDate(receipt.createdAt)}</span><span>Cashier: {receipt.cashierName}</span>{receipt.customerName && <span>Customer: {receipt.customerName}</span>}</div>
     <div className="receipt-rule" />

@@ -5,6 +5,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const body = await context.request.json() as {
       username?: string;
       password?: string;
+      remember?: boolean;
     };
 
     const ipAddress = context.request.headers.get("cf-connecting-ip") || "127.0.0.1";
@@ -78,7 +79,8 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
 
     // Generate new session
     const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const sessionHours = body.remember === false ? 12 : 30 * 24;
+    const expiresAt = new Date(Date.now() + sessionHours * 60 * 60 * 1000).toISOString();
     const now = new Date().toISOString();
 
     await db.batch([

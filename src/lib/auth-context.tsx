@@ -43,7 +43,7 @@ export type AuthContextType = {
   isLocked: boolean;
   isLoading: boolean;
   isOwner: boolean;
-  setSessionData: (token: string, user: AuthUser, business: AuthBusiness, branches: AuthBranch[]) => void;
+  setSessionData: (token: string, user: AuthUser, business: AuthBusiness, branches: AuthBranch[], remember: boolean) => void;
   refreshBranches: () => Promise<void>;
   logout: () => Promise<void>;
   lockPos: () => void;
@@ -55,6 +55,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = "diapalace_session_token";
 const SESSION_DATA_KEY = "diapalace_session_data";
+
+const readStorage = (key: string): string | null => {
+  if (typeof window === "undefined") return null;
+  const sessionValue = sessionStorage.getItem(key);
+  if (sessionValue !== null) return sessionValue;
+  return localStorage.getItem(key);
+};
+
+const removeStorage = (key: string) => {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(key);
+  sessionStorage.removeItem(key);
+};
 
 export const DEMO_BUSINESS: AuthBusiness = {
   id: "biz-diapalace",
@@ -155,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refetchSession = async () => {
-    const storedToken = localStorage.getItem(TOKEN_KEY);
+    const storedToken = readStorage(TOKEN_KEY);
     if (!storedToken) {
       setIsLoading(false);
       return;
@@ -179,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Fallback to local stored session cache if backend request is unavailable (e.g. next dev)
-    const storedDataStr = localStorage.getItem(SESSION_DATA_KEY);
+    const storedDataStr = readStorage(SESSION_DATA_KEY);
     if (storedDataStr) {
       try {
         const cached = JSON.parse(storedDataStr);
@@ -205,10 +218,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     newToken: string,
     newUser: AuthUser,
     newBusiness: AuthBusiness,
-    newBranches: AuthBranch[]
+    newBranches: AuthBranch[],
+    remember: boolean
   ) => {
-    localStorage.setItem(TOKEN_KEY, newToken);
-    localStorage.setItem(SESSION_DATA_KEY, JSON.stringify({ user: newUser, business: newBusiness, branches: newBranches }));
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem(TOKEN_KEY, newToken);
+    storage.setItem(SESSION_DATA_KEY, JSON.stringify({ user: newUser, business: newBusiness, branches: newBranches }));
     applyUserSession(newToken, newUser, newBusiness, newBranches);
   };
 
@@ -227,7 +242,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const nextBranches = data.branches;
       setBranches(nextBranches);
       if (user && business) {
-        localStorage.setItem(SESSION_DATA_KEY, JSON.stringify({ user, business, branches: nextBranches }));
+        const storage = localStorage.getItem(TOKEN_KEY) !== null ? localStorage : sessionStorage;
+        storage.setItem(SESSION_DATA_KEY, JSON.stringify({ user, business, branches: nextBranches }));
       }
       setCurrentBranch((current) => {
         if (current === "all" || current === null) return current;
@@ -249,8 +265,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ignore error
       }
     }
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(SESSION_DATA_KEY);
+    removeStorage(TOKEN_KEY);
+    removeStorage(SESSION_DATA_KEY);
     setToken(null);
     setUser(null);
     setBusiness(null);

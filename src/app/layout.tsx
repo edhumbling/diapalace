@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Public_Sans, Merriweather } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
+import { brand } from "@/lib/brand";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -18,8 +19,21 @@ const merriweather = Merriweather({
 });
 
 export const metadata: Metadata = {
-  title: "Dia's Palace | Ghana retail POS",
-  description: "A modern point-of-sale, inventory, and multi-branch management system for Dia's Palace in Ghana.",
+  metadataBase: new URL("https://diapalace.vercel.app"),
+  title: brand.appTitle,
+  description: brand.description,
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: brand.favicon,
+    apple: brand.appleTouchIcon,
+  },
+  openGraph: {
+    title: brand.publicTitle,
+    description: brand.description,
+    siteName: brand.businessName,
+    images: [{ url: brand.logo, width: 1080, height: 871, alt: `${brand.businessName} logo` }],
+    type: "website",
+  },
 };
 
 export default function RootLayout({

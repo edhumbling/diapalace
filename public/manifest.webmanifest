@@ -1,0 +1,13 @@
+{
+  "name": "Dia's Palace | Beauty, Skincare, Haircare, Fashion & Everyday Essentials",
+  "short_name": "Dia's Palace",
+  "description": "Dia's Palace is a trusted retail destination for beauty, skincare, haircare, fashion, and everyday essentials.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d233b",
+  "theme_color": "#0d233b",
+  "icons": [
+    { "src": "/brand/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
