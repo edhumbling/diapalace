@@ -108,7 +108,8 @@ export function generateTempPassword(): string {
 // ─── Session Validation (Bulletproof Fallback Support) ─────────────────────────────
 export async function validateSession(
   db: D1Database,
-  token: string
+  token: string,
+  options?: { host?: string }
 ): Promise<AuthContextResult | null> {
   if (!token || typeof token !== "string") return null;
 
@@ -145,8 +146,11 @@ export async function validateSession(
     }
   }
 
-  // 3. Robust Fallback for any local/demo token (e.g. s_local_jordanlee_... or s_local_h_...)
-  if (!session && (cleanToken.startsWith("s_local_") || cleanToken.startsWith("s_"))) {
+  // 3. Local-development fallback for demo tokens (e.g. s_local_jordanlee_...).
+  //    Deliberately restricted to localhost hosts: on the live domain any token
+  //    must resolve to a real session row in D1.
+  const isLocalDev = typeof options?.host === "string" && ["localhost", "127.0.0.1", "[::1]"].includes(options.host);
+  if (isLocalDev && !session && (cleanToken.startsWith("s_local_") || cleanToken.startsWith("s_"))) {
     let match = cleanToken.match(/^s_local_([^_]+)/);
     let username = match ? match[1] : "jordanlee";
 
@@ -239,10 +243,7 @@ export async function validateSession(
   }
 
   if (branches.length === 0) {
-    branches = [
-      { id: "br-osu", business_id: session.business_id, name: "Osu Flagship Store", location: "Osu, Accra", phone: "024 111 2222", status: "active" },
-      { id: "br-kumasi", business_id: session.business_id, name: "Kumasi Branch", location: "Adum, Kumasi", phone: "024 333 4444", status: "active" },
-    ];
+    return null;
   }
 
   return {
@@ -274,7 +275,7 @@ export async function requireAuth(
     return Response.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  const auth = await validateSession(db, token.trim());
+  const auth = await validateSession(db, token.trim(), { host: new URL(request.url).hostname });
   if (!auth) {
     return Response.json({ error: "Session expired or invalid" }, { status: 401 });
   }
@@ -342,8 +343,8 @@ export async function logAudit(
           id, business_id, branch_id, user_id,
           action, module, entity_type, entity_id,
           old_values, new_values, reason,
-          ip_address, device_id, session_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ip_address, device_id, session_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         auditId,
@@ -359,14 +360,15 @@ export async function logAudit(
         reasonText,
         params.ip_address || "102.176.54.12",
         params.device_id || "POS-REGISTER-01",
-        params.session_id || ""
+        params.session_id || "",
+        new Date().toISOString()
       )
       .run();
 
     await db
       .prepare(
-        `INSERT INTO audit_log (id, business_id, user_id, user_name, branch_id, branch_name, action, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO audit_log (id, business_id, user_id, user_name, branch_id, branch_name, action, description, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         auditId,
@@ -376,7 +378,8 @@ export async function logAudit(
         params.branch_id || "",
         params.branch_name || "",
         params.action,
-        reasonText || params.action
+        reasonText || params.action,
+        new Date().toISOString()
       )
       .run();
   } catch (err) {

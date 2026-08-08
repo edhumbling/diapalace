@@ -50,6 +50,10 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const authOrRes = await requireAuth(context.request, context.env.diapalace_db);
     if (authOrRes instanceof Response) return authOrRes;
 
+    if (!["owner", "manager", "stock_officer"].includes(authOrRes.user.role)) {
+      return Response.json({ error: "You are not allowed to create stock transfers." }, { status: 403 });
+    }
+
     const body = await context.request.json() as {
       fromBranchId?: string;
       toBranchId?: string;
@@ -66,14 +70,17 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       return Response.json({ error: "Source and destination branch cannot be the same." }, { status: 400 });
     }
 
+    if (!authOrRes.branches.some((branch) => branch.id === body.fromBranchId) || !authOrRes.branches.some((branch) => branch.id === body.toBranchId)) {
+      return Response.json({ error: "You do not have access to one of the selected branches." }, { status: 403 });
+    }
+
     const db = context.env.diapalace_db;
     const transferId = `tr-${crypto.randomUUID()}`;
     const transferNumber = `TR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Check available stock in sending branch
     const product = await db
-      .prepare("SELECT stock_quantity, name FROM products WHERE id = ?")
-      .bind(body.productId)
+      .prepare("SELECT stock_quantity, name FROM products WHERE id = ? AND (business_id = ? OR business_id IS NULL)")
+      .bind(body.productId, authOrRes.user.business_id)
       .first<{ stock_quantity: number; name: string }>();
 
     if (!product || product.stock_quantity < body.quantity) {
@@ -98,8 +105,8 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       // Deduct stock from origin branch
       db.prepare("UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?").bind(body.quantity, body.productId),
       db.prepare(
-        "INSERT INTO inventory_movements (id, product_id, type, quantity, reference_type, reference_id, note) VALUES (?, ?, 'adjustment', ?, 'transfer_dispatch', ?, ?)"
-      ).bind(crypto.randomUUID(), body.productId, -body.quantity, transferId, `Dispatched for transfer ${transferNumber}`),
+        "INSERT INTO inventory_movements (id, product_id, type, quantity, reference_type, reference_id, note, created_at) VALUES (?, ?, 'adjustment', ?, 'transfer_dispatch', ?, ?, ?)"
+      ).bind(crypto.randomUUID(), body.productId, -body.quantity, transferId, `Dispatched for transfer ${transferNumber}`, new Date().toISOString()),
     ]);
 
     await logAudit(db, {

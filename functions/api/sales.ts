@@ -71,8 +71,9 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       const existing = await db.prepare("SELECT id, sale_id FROM receipts WHERE business_id = ? AND idempotency_key = ?").bind(authOrRes.user.business_id, idempotencyKey).first<{ id: string; sale_id: string }>();
       if (existing) {
         const receipt = await loadReceipt(db, existing.id);
-        const state = await getPosState(db);
-        const sale = state.sales.find((item) => item.id === receipt?.receiptNumber);
+        let state: Awaited<ReturnType<typeof getPosState>> | null = null;
+        try { state = await getPosState(db); } catch (stateError) { console.error("POS state unavailable during duplicate sale check", stateError); }
+        const sale = state?.sales.find((item) => item.id === receipt?.receiptNumber) ?? null;
         if (receipt) return Response.json({ sale, receipt, state, duplicate: true });
       }
     }
@@ -83,7 +84,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const customer = body.customerId ? await db.prepare("SELECT name, phone FROM customers WHERE id = ?").bind(body.customerId).first<{ name: string; phone: string }>() : null;
     const productSnapshots: ReceiptData["items"] = [];
     for (const item of body.items) {
-      const product = await db.prepare("SELECT id, name, COALESCE(description, '') AS description, stock_quantity, selling_price FROM products WHERE id = ?").bind(item.productId).first<{ id: string; name: string; description: string; stock_quantity: number; selling_price: number }>();
+      const product = await db.prepare("SELECT id, name, COALESCE(description, '') AS description, stock_quantity, selling_price FROM products WHERE id = ? AND (business_id = ? OR business_id IS NULL)").bind(item.productId, authOrRes.user.business_id).first<{ id: string; name: string; description: string; stock_quantity: number; selling_price: number }>();
       if (!product) return Response.json({ error: "One of the selected products is no longer available." }, { status: 409 });
       if (product.stock_quantity < item.qty) return Response.json({ error: `${product.name} does not have enough stock to complete this sale.` }, { status: 409 });
       productSnapshots.push({ productId: product.id, name: product.name, description: product.description, quantity: item.qty, unitPrice: product.selling_price, total: product.selling_price * item.qty });
@@ -91,8 +92,16 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
 
     const subtotal = productSnapshots.reduce((sum, item) => sum + item.total, 0);
     const discount = Math.min(Math.max(body.discount ?? 0, 0), subtotal);
-    const tax = Math.max(body.tax ?? 0, 0);
-    const total = Math.max(0, subtotal - discount + tax);
+    const cashierDiscountCap = Math.round(subtotal * 0.05 * 100) / 100;
+    if (authOrRes.user.role === "cashier" && discount > cashierDiscountCap + 0.001) {
+      return Response.json({ error: `Discount of GH₵ ${discount.toFixed(2)} exceeds your cashier authority (maximum GH₵ ${cashierDiscountCap.toFixed(2)}). Ask a manager to approve this discount.` }, { status: 403 });
+    }
+    const settingsRows = await db.prepare("SELECT key, value FROM settings WHERE key IN ('tax_enabled', 'tax_rate')").all<{ key: string; value: string }>();
+    const settingsMap = new Map((settingsRows.results ?? []).map((setting) => [setting.key, setting.value]));
+    const taxEnabled = settingsMap.get("tax_enabled") === "1";
+    const taxRate = Number(settingsMap.get("tax_rate") ?? 15);
+    const tax = taxEnabled ? Math.round(subtotal * taxRate * 100) / 10000 : 0;
+    const total = Math.max(0, Math.round((subtotal - discount + tax) * 100) / 100);
     const amountPaid = body.amountPaid ?? total;
     if (amountPaid < total) return Response.json({ error: "Payment received does not cover the sale total." }, { status: 400 });
     const change = Math.max(0, amountPaid - total);
@@ -104,25 +113,34 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     for (const item of productSnapshots) {
       statements.push(db.prepare("UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?").bind(item.quantity, item.productId));
       statements.push(db.prepare("INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), saleId, item.productId, item.quantity, item.unitPrice, item.total));
-      statements.push(db.prepare("INSERT INTO inventory_movements (id, business_id, branch_id, product_id, type, quantity, reference_type, reference_id, note) VALUES (?, ?, ?, ?, 'sale', ?, 'sale', ?, 'POS checkout')").bind(crypto.randomUUID(), authOrRes.user.business_id, branchId, item.productId, -item.quantity, saleId));
+      statements.push(db.prepare("INSERT INTO inventory_movements (id, business_id, branch_id, product_id, type, quantity, reference_type, reference_id, note, created_at) VALUES (?, ?, ?, ?, 'sale', ?, 'sale', ?, 'POS checkout', ?)").bind(crypto.randomUUID(), authOrRes.user.business_id, branchId, item.productId, -item.quantity, saleId, createdAt));
     }
     statements.push(db.prepare("INSERT INTO payments (id, sale_id, method, amount, reference, status, paid_at) VALUES (?, ?, ?, ?, ?, 'PAID', ?)").bind(crypto.randomUUID(), saleId, body.method, total, body.reference ?? null, createdAt));
     statements.push(db.prepare("INSERT INTO receipts (id, sale_id, receipt_number, business_id, branch_id, cashier_id, business_name, branch_name, business_phone, business_email, branch_address, customer_name, customer_phone, subtotal, discount, tax, total, payment_method, amount_paid, change_amount, idempotency_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(receiptId, saleId, receiptNumber, authOrRes.user.business_id, branchId, authOrRes.user.id, business?.name || "Dia's Palace", branch?.name || "Branch", business?.phone || branch?.phone || "", business?.email || "", branch?.address || "", customer?.name || "", customer?.phone || "", subtotal, discount, tax, total, body.method, amountPaid, change, idempotencyKey || null, createdAt));
     for (const item of productSnapshots) statements.push(db.prepare("INSERT INTO receipt_items (id, receipt_id, product_id, product_name, product_description, quantity, unit_price, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), receiptId, item.productId, item.name, item.description, item.quantity, item.unitPrice, item.total));
     await db.batch(statements);
 
-    const state = await getPosState(db, branchId);
-    const sale = state.sales.find((item) => item.id === receiptNumber);
     const receipt: ReceiptData = { id: receiptId, saleId, receiptNumber, businessName: business?.name || "Dia's Palace", branchName: branch?.name || "Branch", businessPhone: business?.phone || branch?.phone || "", businessEmail: business?.email, branchAddress: branch?.address || "", cashierName: authOrRes.user.full_name, customerName: customer?.name, customerPhone: customer?.phone, items: productSnapshots, subtotal, discount, tax, total, paymentMethod: body.method, amountPaid, change, createdAt, footer: "Thank you for shopping with us." };
     await logAudit(db, { business_id: authOrRes.user.business_id, user_id: authOrRes.user.id, user_name: authOrRes.user.full_name, branch_id: branchId, branch_name: branch?.name || "Branch", module: "SALES", action: "SALE_COMPLETED", entity_type: "SALE", entity_id: saleId, new_values: { receiptNumber, total, paymentMethod: body.method }, reason: "Sale completed", description: `Sale ${receiptNumber} completed.` });
+    if (discount > 0) {
+      await logAudit(db, { business_id: authOrRes.user.business_id, user_id: authOrRes.user.id, user_name: authOrRes.user.full_name, branch_id: branchId, branch_name: branch?.name || "Branch", module: "SALES", action: "SALE_DISCOUNTED", entity_type: "SALE", entity_id: saleId, new_values: { subtotal, discount, total }, reason: `Discount of GH₵ ${discount.toFixed(2)} applied by ${authOrRes.user.role}`, description: `Discount of GH₵ ${discount.toFixed(2)} applied to sale ${receiptNumber}.` });
+    }
 
     for (const item of productSnapshots) {
       const product = await db.prepare("SELECT stock_quantity, reorder_level FROM products WHERE id = ?").bind(item.productId).first<{ stock_quantity: number; reorder_level: number }>();
       if (product && product.reorder_level > 0 && product.stock_quantity <= product.reorder_level) await createNotifications(db, { businessId: authOrRes.user.business_id, branchId, branchName: branch?.name || "Branch", category: "INVENTORY", type: "LOW_STOCK", severity: product.stock_quantity === 0 ? "CRITICAL" : "WARNING", title: product.stock_quantity === 0 ? "Out of stock" : "Low stock", message: `${item.name} has ${product.stock_quantity} remaining after sale ${receiptNumber}.`, entityType: "PRODUCT", entityId: item.productId, actionUrl: "/manage/inventory", dedupeKey: `LOW_STOCK:${branchId}:${item.productId}`, roles: ["owner", "manager", "stock_officer"], metadata: { remaining: product.stock_quantity, threshold: product.reorder_level } });
     }
+
+    let state: Awaited<ReturnType<typeof getPosState>> | null = null;
+    try {
+      state = await getPosState(db, branchId || undefined);
+    } catch (stateError) {
+      console.error("Fresh POS state could not be loaded after a completed sale", stateError);
+    }
+    const sale = state?.sales.find((item) => item.id === receiptNumber) ?? null;
     return Response.json({ sale, receipt, state });
   } catch (error) {
-    console.error("Sale transaction rolled back", error);
+    console.error("Sale transaction failed", error);
     return Response.json({ error: "Sale could not be completed. No changes were made." }, { status: 409 });
   }
 };

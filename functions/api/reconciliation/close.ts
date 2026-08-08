@@ -20,17 +20,29 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const db = context.env.diapalace_db;
     const recId = `rec-${crypto.randomUUID()}`;
 
-    const expectedCash = body.expectedCash ?? 0;
-    const countedCash = body.countedCash ?? 0;
-    const cashVariance = countedCash - expectedCash;
+    const branchId = body.branchId && authOrRes.branches.some((branch) => branch.id === body.branchId) ? body.branchId : authOrRes.branches[0]?.id || "";
+    if (!branchId) return Response.json({ error: "You do not have access to any branch to close a register shift." }, { status: 403 });
+    const branchName = authOrRes.branches.find((branch) => branch.id === branchId)?.name || "Branch";
 
-    const expectedMomo = body.expectedMomo ?? 0;
-    const countedMomo = body.countedMomo ?? 0;
-    const momoVariance = countedMomo - expectedMomo;
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
 
-    const expectedCard = body.expectedCard ?? 0;
-    const countedCard = body.countedCard ?? 0;
-    const cardVariance = countedCard - expectedCard;
+    const expected = await db.prepare(`SELECT
+      COALESCE(SUM(CASE WHEN pay.method = 'Cash' THEN pay.amount ELSE 0 END), 0) AS cash,
+      COALESCE(SUM(CASE WHEN pay.method IN ('MTN MoMo', 'Telecel Cash', 'AirtelTigo Money') THEN pay.amount ELSE 0 END), 0) AS momo,
+      COALESCE(SUM(CASE WHEN pay.method IN ('Card / POS', 'Bank transfer') THEN pay.amount ELSE 0 END), 0) AS card
+      FROM payments pay JOIN sales s ON s.id = pay.sale_id
+      WHERE s.branch_id = ? AND s.status = 'PAID' AND s.created_at >= ?`).bind(branchId, dayStart.toISOString()).first<{ cash: number; momo: number; card: number }>();
+
+    const expectedCash = Math.round((expected?.cash ?? 0) * 100) / 100;
+    const expectedMomo = Math.round((expected?.momo ?? 0) * 100) / 100;
+    const expectedCard = Math.round((expected?.card ?? 0) * 100) / 100;
+    const countedCash = Math.max(body.countedCash ?? 0, 0);
+    const countedMomo = Math.max(body.countedMomo ?? 0, 0);
+    const countedCard = Math.max(body.countedCard ?? 0, 0);
+    const cashVariance = Math.round((countedCash - expectedCash) * 100) / 100;
+    const momoVariance = Math.round((countedMomo - expectedMomo) * 100) / 100;
+    const cardVariance = Math.round((countedCard - expectedCard) * 100) / 100;
 
     const hasShortage = cashVariance < 0 || momoVariance < 0 || cardVariance < 0;
     const status = hasShortage ? "FLAGGED" : "CLOSED";
@@ -42,13 +54,13 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
           expected_cash, counted_cash, cash_variance,
           expected_momo, counted_momo, momo_variance,
           expected_card, counted_card, card_variance,
-          closing_notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          closing_notes, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         recId,
         authOrRes.user.business_id,
-        body.branchId || authOrRes.user.business_id,
+        branchId,
         authOrRes.user.id,
         expectedCash,
         countedCash,
@@ -60,7 +72,8 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
         countedCard,
         cardVariance,
         body.notes?.trim() ?? "",
-        status
+        status,
+        new Date().toISOString()
       )
       .run();
 
@@ -71,8 +84,8 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       business_id: authOrRes.user.business_id,
       user_id: authOrRes.user.id,
       user_name: authOrRes.user.full_name,
-      branch_id: body.branchId || authOrRes.branches[0]?.id || "",
-      branch_name: authOrRes.branches[0]?.name || "Branch",
+      branch_id: branchId,
+      branch_name: branchName,
       module: "PAYMENTS",
       action: "PAYMENT_RECONCILED",
       entity_type: "REGISTER_SHIFT",
@@ -84,8 +97,6 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     });
 
     if (hasShortage) {
-      const branchId = body.branchId || authOrRes.branches[0]?.id || "";
-      const branchName = authOrRes.branches.find((branch) => branch.id === branchId)?.name || "Branch";
       const variance = Math.min(cashVariance, momoVariance, cardVariance);
       await createNotifications(db, {
         businessId: authOrRes.user.business_id,

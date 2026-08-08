@@ -91,8 +91,8 @@ export async function createNotifications(db: D1Database, event: NotificationEve
       .prepare(
         `INSERT INTO notifications (
           id, business_id, branch_id, recipient_user_id, category, type, severity,
-          title, message, entity_type, entity_id, action_url, dedupe_key, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          title, message, entity_type, entity_id, action_url, dedupe_key, metadata, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         notificationId,
@@ -108,7 +108,8 @@ export async function createNotifications(db: D1Database, event: NotificationEve
         event.entityId ?? null,
         event.actionUrl ?? null,
         event.dedupeKey,
-        event.metadata ? JSON.stringify(event.metadata) : null
+        event.metadata ? JSON.stringify(event.metadata) : null,
+        new Date().toISOString()
       )
       .run();
     created.push(notificationId);

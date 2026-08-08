@@ -52,8 +52,8 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
           );
           statements.push(
             db.prepare(
-              "INSERT INTO inventory_movements (id, product_id, type, quantity, reference_type, reference_id, note) VALUES (?, ?, 'return', ?, 'refund', ?, ?)"
-            ).bind(crypto.randomUUID(), item.product_id, item.quantity, requestRow.sale_id, `Approved refund: ${requestRow.reason}`)
+              "INSERT INTO inventory_movements (id, product_id, type, quantity, reference_type, reference_id, note, created_at) VALUES (?, ?, 'return', ?, 'refund', ?, ?, ?)"
+            ).bind(crypto.randomUUID(), item.product_id, item.quantity, requestRow.sale_id, `Approved refund: ${requestRow.reason}`, new Date().toISOString())
           );
         }
       }

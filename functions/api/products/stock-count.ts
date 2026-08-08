@@ -16,12 +16,12 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const db = context.env.diapalace_db;
     const statements: D1PreparedStatement[] = [];
     for (const row of rows) {
-      const current = await db.prepare("SELECT stock_quantity FROM products WHERE id = ?").bind(row.productId).first<{ stock_quantity: number }>();
+      const current = await db.prepare("SELECT stock_quantity FROM products WHERE id = ? AND (business_id = ? OR business_id IS NULL)").bind(row.productId, authOrRes.user.business_id).first<{ stock_quantity: number }>();
       if (!current) continue;
       const difference = row.physicalQuantity! - current.stock_quantity;
       if (difference === 0) continue;
       statements.push(db.prepare("UPDATE products SET stock_quantity = ? WHERE id = ?").bind(row.physicalQuantity, row.productId));
-      statements.push(db.prepare("INSERT INTO inventory_movements (id, business_id, product_id, type, quantity, reference_type, reference_id, note) VALUES (?, ?, ?, 'adjustment', ?, 'stock_count', ?, ?)").bind(crypto.randomUUID(), authOrRes.user.business_id, row.productId, difference, `count-${crypto.randomUUID()}`, body.reason.trim()));
+      statements.push(db.prepare("INSERT INTO inventory_movements (id, business_id, product_id, type, quantity, reference_type, reference_id, note, created_at) VALUES (?, ?, ?, 'adjustment', ?, 'stock_count', ?, ?, ?)").bind(crypto.randomUUID(), authOrRes.user.business_id, row.productId, difference, `count-${crypto.randomUUID()}`, body.reason.trim(), new Date().toISOString()));
     }
     if (statements.length) await db.batch(statements);
     return Response.json({ success: true, adjusted: statements.length / 2 });
