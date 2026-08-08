@@ -22,3 +22,6 @@ next-env.d.ts
 # editor and OS files
 .DS_Store
 *.pem
+
+.vercel
+.env*
