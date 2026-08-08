@@ -79,7 +79,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       message: `${branchName} has a GH₵ ${Number(body.amount).toFixed(2)} refund request from ${authOrRes.user.full_name}.`,
       entityType: "REFUND_REQUEST",
       entityId: requestId,
-      actionUrl: "/understand/sales",
+      actionUrl: "/sales",
       dedupeKey: `REFUND_REQUEST:${requestId}`,
       roles: ["owner", "manager"],
       metadata: { amount: body.amount, saleId: body.saleId, requestedBy: authOrRes.user.full_name },

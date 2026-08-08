@@ -157,7 +157,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
         message: `${branchName} (${register?.name || "Register"}) is GH₵ ${Math.abs(difference).toFixed(2)} ${word}. Expected GH₵ ${expectedCash.toFixed(2)}, counted GH₵ ${countedCash.toFixed(2)}. ${reason ? `Reason: ${reason}` : ""}`,
         entityType: "CASH_RECONCILIATION",
         entityId: closingId,
-        actionUrl: "/understand/reconciliation",
+        actionUrl: "/cash-up",
         dedupeKey: `CASH_DIFFERENCE:${closingId}`,
         roles: ["owner", "manager"],
         metadata: { expectedCash, countedCash, difference, reason, branchId: shift.branch_id },

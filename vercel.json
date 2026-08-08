@@ -4,5 +4,35 @@
       "source": "/api/:path*",
       "destination": "https://diapalace.pages.dev/api/:path*"
     }
+  ],
+  "redirects": [
+    { "source": "/sell/checkout", "destination": "/sales/new", "permanent": true },
+    { "source": "/understand/sales", "destination": "/sales", "permanent": true },
+    { "source": "/manage/inventory", "destination": "/inventory", "permanent": true },
+    { "source": "/understand/reconciliation", "destination": "/cash-up", "permanent": true },
+    { "source": "/manage/transfers", "destination": "/stock-transfers", "permanent": true },
+    { "source": "/understand/reports", "destination": "/reports", "permanent": true },
+    { "source": "/administration/employees", "destination": "/employees", "permanent": true },
+    { "source": "/administration/branches", "destination": "/branches", "permanent": true },
+    { "source": "/administration/audit", "destination": "/audit-log", "permanent": true },
+    { "source": "/workspace/settings", "destination": "/settings", "permanent": true },
+    { "source": "/workspace/notifications", "destination": "/notifications", "permanent": true },
+    { "source": "/manage/customers", "destination": "/customers", "permanent": true },
+    { "source": "/manage/purchases", "destination": "/purchases", "permanent": true },
+    { "source": "/manage/expenses", "destination": "/expenses", "permanent": true },
+    { "source": "/branches/:branch/new-sale", "destination": "/sales/new", "permanent": true },
+    { "source": "/branches/:branch/sales", "destination": "/sales", "permanent": true },
+    { "source": "/branches/:branch/inventory", "destination": "/inventory", "permanent": true },
+    { "source": "/branches/:branch/cash-up", "destination": "/cash-up", "permanent": true },
+    { "source": "/branches/:branch/reports", "destination": "/reports", "permanent": true },
+    { "source": "/branches/:branch/employees", "destination": "/employees", "permanent": true },
+    { "source": "/branches/:branch/branches", "destination": "/branches", "permanent": true },
+    { "source": "/branches/:branch/notifications", "destination": "/notifications", "permanent": true },
+    { "source": "/branches/:branch/audit-trail", "destination": "/audit-log", "permanent": true },
+    { "source": "/branches/:branch/settings", "destination": "/settings", "permanent": true },
+    { "source": "/branches/:branch/stock-transfers", "destination": "/stock-transfers", "permanent": true },
+    { "source": "/branches/:branch/customers", "destination": "/customers", "permanent": true },
+    { "source": "/branches/:branch/purchases", "destination": "/purchases", "permanent": true },
+    { "source": "/branches/:branch/expenses", "destination": "/expenses", "permanent": true }
   ]
 }

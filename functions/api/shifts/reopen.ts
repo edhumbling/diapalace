@@ -66,7 +66,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       message: `${branchName} reopened the closed shift on register ${closing.register_id ? "for further count" : ""} because ${reason}. A new cash count is required.`,
       entityType: "CASH_RECONCILIATION",
       entityId: closing.id,
-      actionUrl: "/understand/reconciliation",
+      actionUrl: "/cash-up",
       dedupeKey: `SHIFT_REOPENED:${closing.id}`,
       roles: ["owner", "manager"],
       metadata: { reason, shiftId: shift.id },

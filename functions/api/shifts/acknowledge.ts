@@ -65,7 +65,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
         message: `${branchName} cash difference of GH₵ ${Math.abs(closing.cash_difference).toFixed(2)} was acknowledged by ${authOrRes.user.full_name}.${note ? ` Note: ${note}` : ""}`,
         entityType: "CASH_RECONCILIATION",
         entityId: closing.id,
-        actionUrl: "/understand/reconciliation",
+        actionUrl: "/cash-up",
         dedupeKey: `CASH_ACKNOWLEDGED:${closing.id}`,
         roles: ["owner"],
         metadata: { note, acknowledgedBy: authOrRes.user.id },

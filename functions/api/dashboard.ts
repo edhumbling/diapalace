@@ -63,9 +63,9 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
     const activityRows = await db.prepare(`SELECT al.id, al.action, al.description, al.created_at, b.name AS branch_name FROM audit_logs al LEFT JOIN branches b ON b.id = al.branch_id WHERE al.business_id = ? AND al.created_at >= ? AND al.created_at < ? AND ${activityScope.sql} ORDER BY al.created_at DESC LIMIT 8`).bind(authOrRes.user.business_id, window.start, window.end, ...activityScope.params).all<{ id: string; action: string; description: string; created_at: string; branch_name: string | null }>();
 
     const attention = [
-      ...(lowStockRows.results ?? []).map((item) => ({ type: "LOW_STOCK", severity: "WARNING", title: "Low stock", message: `${item.name}${item.description ? ` ${item.description}` : ""} has ${item.stock} remaining.`, branchName: item.branch_name, action: "/manage/inventory" })),
-      ...(varianceRows.results ?? []).map((item) => ({ type: "CASH_VARIANCE", severity: Math.abs(item.variance) >= 500 ? "CRITICAL" : "WARNING", title: "Cash variance", message: `${item.branch_name || "Branch"} has a ${item.variance < 0 ? "shortage" : "overage"} of GH₵ ${Math.abs(item.variance).toFixed(2)}.`, branchName: item.branch_name, action: "/understand/reconciliation" })),
-      ...(refundRows.results ?? []).map((item) => ({ type: "REFUND", severity: "WARNING", title: "Refund requires approval", message: `GH₵ ${item.amount.toFixed(2)} refund awaiting review.`, branchName: item.branch_name, action: "/understand/sales" })),
+      ...(lowStockRows.results ?? []).map((item) => ({ type: "LOW_STOCK", severity: "WARNING", title: "Low stock", message: `${item.name}${item.description ? ` ${item.description}` : ""} has ${item.stock} remaining.`, branchName: item.branch_name, action: "/inventory" })),
+      ...(varianceRows.results ?? []).map((item) => ({ type: "CASH_VARIANCE", severity: Math.abs(item.variance) >= 500 ? "CRITICAL" : "WARNING", title: "Cash variance", message: `${item.branch_name || "Branch"} has a ${item.variance < 0 ? "shortage" : "overage"} of GH₵ ${Math.abs(item.variance).toFixed(2)}.`, branchName: item.branch_name, action: "/cash-up" })),
+      ...(refundRows.results ?? []).map((item) => ({ type: "REFUND", severity: "WARNING", title: "Refund requires approval", message: `GH₵ ${item.amount.toFixed(2)} refund awaiting review.`, branchName: item.branch_name, action: "/sales" })),
     ];
 
     let branches = [] as Array<{ id: string; name: string; sales: number; transactions: number; cashUp: string }>;
