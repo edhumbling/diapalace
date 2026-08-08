@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Public_Sans, Merriweather } from "next/font/google";
+import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -17,8 +18,8 @@ const merriweather = Merriweather({
 });
 
 export const metadata: Metadata = {
-  title: "DiaPalace | Ghana retail POS",
-  description: "A modern point-of-sale, inventory, and reconciliation system for DiaPalace in Ghana.",
+  title: "Dia's Palace | Ghana retail POS",
+  description: "A modern point-of-sale, inventory, and multi-branch management system for Dia's Palace in Ghana.",
 };
 
 export default function RootLayout({
@@ -28,7 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${publicSans.variable} ${merriweather.variable}`}>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

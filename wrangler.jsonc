@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "diapalace",
+  "pages_build_output_dir": "./out",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "diapalace_db",
+      "database_name": "diapalace-db",
+      "database_id": "e065ddd0-caa2-4f1b-9ecc-64f5d9b503df"
+    }
+  ]
+}

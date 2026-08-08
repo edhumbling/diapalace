@@ -4,16 +4,21 @@
   "private": true,
   "packageManager": "bun@1.3.14",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "preview": "next build && wrangler pages dev out --d1 diapalace_db=diapalace-db-local",
+    "deploy": "next build && wrangler pages deploy out",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "db:migrate:local": "node scripts/migrate-local.mjs",
+    "db:migrate:remote": "wrangler d1 execute --config wrangler.jsonc diapalace-db --remote --file=./schema.sql"
   },
   "dependencies": {
+    "lucide-react": "^0.475.0",
     "next": "^16.3.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "lucide-react": "^0.475.0"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
@@ -21,6 +26,7 @@
     "@types/react-dom": "^19.2.4",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.120.0"
   }
 }

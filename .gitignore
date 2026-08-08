@@ -7,6 +7,9 @@ node_modules/
 .next/
 out/
 build/
+.open-next/
+.wrangler/
+.dev.vars*
 
 # local environment
 .env*
