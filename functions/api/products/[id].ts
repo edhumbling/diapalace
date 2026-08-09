@@ -29,7 +29,7 @@ export const onRequestPatch: PagesFunction<CloudflareEnv> = async (context) => {
       if (!target) return Response.json({ error: "Product not found." }, { status: 404 });
       if (target.stock_quantity + body.amount < 0) return Response.json({ error: `Adjustment would leave '${target.name}' with negative stock.` }, { status: 400 });
       await db.batch([
-        db.prepare("UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?").bind(body.amount, productId),
+        db.prepare("UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?").bind(body.amount, new Date().toISOString(), productId),
         db.prepare("INSERT INTO inventory_movements (id, business_id, branch_id, product_id, type, quantity, reference_type, note, created_at) VALUES (?, ?, ?, ?, 'adjustment', ?, 'manual', ?, ?)").bind(crypto.randomUUID(), authOrRes.user.business_id, authOrRes.branches[0]?.id || "", productId, body.amount, body.note.trim(), new Date().toISOString()),
       ]);
       await logAudit(db, { business_id: authOrRes.user.business_id, user_id: authOrRes.user.id, user_name: authOrRes.user.full_name, branch_id: authOrRes.branches[0]?.id || "", branch_name: authOrRes.branches[0]?.name || "Branch", module: "INVENTORY", action: "STOCK_ADJUSTED", entity_type: "PRODUCT", entity_id: productId, old_values: { stock: target.stock_quantity }, new_values: { stock: target.stock_quantity + body.amount }, reason: body.note.trim(), description: `Adjusted ${target.name} stock by ${body.amount > 0 ? "+" : ""}${body.amount}. ${body.note.trim()}` });
@@ -55,7 +55,7 @@ export const onRequestPatch: PagesFunction<CloudflareEnv> = async (context) => {
     const categoryId = `cat-${category.toLowerCase().replaceAll(" ", "-")}`;
     await db.batch([
       db.prepare("INSERT OR IGNORE INTO categories (id, name) VALUES (?, ?)").bind(categoryId, category),
-      db.prepare("UPDATE products SET name = ?, description = ?, category_id = ?, cost_price = ?, selling_price = ?, reorder_level = ?, unit = ? WHERE id = ?").bind(body.name.trim(), body.description?.trim() ?? "", categoryId, body.cost ?? existing.cost_price, body.price, body.reorderAt ?? existing.reorder_level, body.unit?.trim() || existing.unit, productId),
+      db.prepare("UPDATE products SET name = ?, description = ?, category_id = ?, cost_price = ?, selling_price = ?, reorder_level = ?, unit = ?, updated_at = ? WHERE id = ?").bind(body.name.trim(), body.description?.trim() ?? "", categoryId, body.cost ?? existing.cost_price, body.price, body.reorderAt ?? existing.reorder_level, body.unit?.trim() || existing.unit, new Date().toISOString(), productId),
     ]);
 
     if (existing.selling_price !== body.price) {

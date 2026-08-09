@@ -24,7 +24,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       const product = { id, name: item.name!.trim(), description: item.description?.trim() ?? "", sku, category, price: item.price!, cost: 0, stock: item.quantity!, reorderAt: item.reorderAt ?? 0, unit: "piece" };
       await db.batch([
         db.prepare("INSERT OR IGNORE INTO categories (id, name) VALUES (?, ?)").bind(`cat-${category.toLowerCase().replaceAll(" ", "-")}`, category),
-        db.prepare("INSERT INTO products (id, business_id, name, description, sku, category_id, cost_price, selling_price, stock_quantity, reorder_level, unit) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'piece')").bind(id, authOrRes.user.business_id, product.name, product.description, sku, `cat-${category.toLowerCase().replaceAll(" ", "-")}`, product.price, product.stock, product.reorderAt),
+        db.prepare("INSERT INTO products (id, business_id, branch_id, name, description, sku, category_id, cost_price, selling_price, stock_quantity, reorder_level, unit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'piece', ?, ?)").bind(id, authOrRes.user.business_id, authOrRes.branches[0]?.id || "", product.name, product.description, sku, `cat-${category.toLowerCase().replaceAll(" ", "-")}`, product.price, product.stock, product.reorderAt, new Date().toISOString(), new Date().toISOString()),
         db.prepare("INSERT INTO inventory_movements (id, business_id, product_id, type, quantity, reference_type, reference_id, note) VALUES (?, ?, ?, 'opening', ?, 'opening_inventory', ?, 'Verified notebook opening stock')").bind(crypto.randomUUID(), authOrRes.user.business_id, id, product.stock, id),
       ]);
       products.push(product);

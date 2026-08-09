@@ -50,7 +50,7 @@ execute(`CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`);
 
-execute(`INSERT OR IGNORE INTO businesses (id, name, phone, email) VALUES ('biz-diapalace', 'Dia\'s Palace', '+233 24 555 0192', 'contact@diapalace.com');
+execute(`INSERT OR IGNORE INTO businesses (id, name, phone, email) VALUES ('biz-diapalace', 'Dia''s Palace', '+233 24 555 0192', 'contact@diapalace.com');
 INSERT OR IGNORE INTO branches (id, business_id, name, location, phone, status, code, email, region, city, address, digital_address, manager_id) VALUES
   ('br-osu', 'biz-diapalace', 'Osu Flagship', 'Osu, Accra', '024 555 0192', 'active', 'OSU-001', '', 'Greater Accra Region', 'Accra', 'Osu, Accra', '', 'u-jordan'),
   ('br-kumasi', 'biz-diapalace', 'Kumasi Branch', 'Adum, Kumasi', '055 318 4420', 'active', 'KUM-001', '', 'Ashanti Region', 'Kumasi', 'Adum, Kumasi', '', '');
@@ -70,5 +70,42 @@ const migrationStatements = migration010.split(";").map((item) => item.trim()).f
 for (let index = 0; index < migrationStatements.length; index += 5) {
   execute(migrationStatements.slice(index, index + 5).join(";\n"), true);
 }
+
+const storeProfileStatements = [
+  "ALTER TABLE businesses ADD COLUMN trading_name TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN description TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN logo_data TEXT",
+  "ALTER TABLE businesses ADD COLUMN store_type TEXT NOT NULL DEFAULT 'Retail'",
+  "ALTER TABLE businesses ADD COLUMN alt_phone TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN whatsapp TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN website TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN country TEXT NOT NULL DEFAULT 'Ghana'",
+  "ALTER TABLE businesses ADD COLUMN region TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN city TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN digital_address TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN physical_address TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN gps_location TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN registration_number TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN tax_number TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN currency TEXT NOT NULL DEFAULT 'GHS'",
+  "ALTER TABLE businesses ADD COLUMN default_language TEXT NOT NULL DEFAULT 'English'",
+  "ALTER TABLE businesses ADD COLUMN business_hours TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN receipt_footer TEXT NOT NULL DEFAULT 'Thank you for shopping with us.'",
+  "ALTER TABLE businesses ADD COLUMN return_policy TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE businesses ADD COLUMN updated_at TEXT",
+  "ALTER TABLE products ADD COLUMN updated_at TEXT",
+];
+for (const statement of storeProfileStatements) execute(statement, true);
+
+execute(`CREATE TABLE IF NOT EXISTS store_custom_fields (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  field_name TEXT NOT NULL,
+  field_value TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_store_custom_fields_business ON store_custom_fields (business_id, sort_order);`, true);
 
 console.log("Local D1 is initialized in Wrangler's default .wrangler/state directory. Use the demo usernames from the login screen.");

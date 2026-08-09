@@ -18,8 +18,28 @@ export type AuthenticatedUser = {
 export type BusinessInfo = {
   id: string;
   name: string;
+  trading_name: string;
+  description: string;
+  logo_data: string | null;
+  store_type: string;
   phone: string;
+  alt_phone: string;
+  whatsapp: string;
   email: string;
+  website: string;
+  country: string;
+  region: string;
+  city: string;
+  digital_address: string;
+  physical_address: string;
+  gps_location: string;
+  registration_number: string;
+  tax_number: string;
+  currency: string;
+  default_language: string;
+  business_hours: string;
+  receipt_footer: string;
+  return_policy: string;
 };
 
 export type BranchInfo = {
@@ -217,8 +237,28 @@ export async function validateSession(
   const businessData = business || {
     id: session.business_id,
     name: "Dia's Palace",
+    trading_name: "",
+    description: "",
+    logo_data: null,
+    store_type: "Retail",
     phone: "024 000 0000",
+    alt_phone: "",
+    whatsapp: "",
     email: "owner@diapalace.com",
+    website: "",
+    country: "Ghana",
+    region: "",
+    city: "",
+    digital_address: "",
+    physical_address: "",
+    gps_location: "",
+    registration_number: "",
+    tax_number: "",
+    currency: "GHS",
+    default_language: "English",
+    business_hours: "",
+    receipt_footer: "Thank you for shopping with us.",
+    return_policy: "",
   };
 
   let branches: BranchInfo[] = [];

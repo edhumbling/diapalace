@@ -20,7 +20,7 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
       if (!current) continue;
       const difference = row.physicalQuantity! - current.stock_quantity;
       if (difference === 0) continue;
-      statements.push(db.prepare("UPDATE products SET stock_quantity = ? WHERE id = ?").bind(row.physicalQuantity, row.productId));
+      statements.push(db.prepare("UPDATE products SET stock_quantity = ?, updated_at = ? WHERE id = ?").bind(row.physicalQuantity, new Date().toISOString(), row.productId));
       statements.push(db.prepare("INSERT INTO inventory_movements (id, business_id, product_id, type, quantity, reference_type, reference_id, note, created_at) VALUES (?, ?, ?, 'adjustment', ?, 'stock_count', ?, ?, ?)").bind(crypto.randomUUID(), authOrRes.user.business_id, row.productId, difference, `count-${crypto.randomUUID()}`, body.reason.trim(), new Date().toISOString()));
     }
     if (statements.length) await db.batch(statements);

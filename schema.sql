@@ -13,10 +13,44 @@ CREATE TABLE IF NOT EXISTS pos_state (
 CREATE TABLE IF NOT EXISTS businesses (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  trading_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  logo_data TEXT,
+  store_type TEXT NOT NULL DEFAULT 'Retail',
   phone TEXT NOT NULL DEFAULT '',
+  alt_phone TEXT NOT NULL DEFAULT '',
+  whatsapp TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  website TEXT NOT NULL DEFAULT '',
+  country TEXT NOT NULL DEFAULT 'Ghana',
+  region TEXT NOT NULL DEFAULT '',
+  city TEXT NOT NULL DEFAULT '',
+  digital_address TEXT NOT NULL DEFAULT '',
+  physical_address TEXT NOT NULL DEFAULT '',
+  gps_location TEXT NOT NULL DEFAULT '',
+  registration_number TEXT NOT NULL DEFAULT '',
+  tax_number TEXT NOT NULL DEFAULT '',
+  currency TEXT NOT NULL DEFAULT 'GHS',
+  default_language TEXT NOT NULL DEFAULT 'English',
+  business_hours TEXT NOT NULL DEFAULT '',
+  receipt_footer TEXT NOT NULL DEFAULT 'Thank you for shopping with us.',
+  return_policy TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS store_custom_fields (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  field_name TEXT NOT NULL,
+  field_value TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_store_custom_fields_business
+  ON store_custom_fields (business_id, sort_order);
 
 CREATE TABLE IF NOT EXISTS branches (
   id TEXT PRIMARY KEY,
@@ -168,7 +202,8 @@ CREATE TABLE IF NOT EXISTS products (
   stock_quantity INTEGER NOT NULL DEFAULT 0,
   reorder_level INTEGER NOT NULL DEFAULT 5 CHECK (reorder_level >= 0),
   unit TEXT NOT NULL DEFAULT 'piece',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS customers (

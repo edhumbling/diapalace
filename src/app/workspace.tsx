@@ -27,6 +27,7 @@ import {
   KeyRound,
   Landmark,
   LayoutDashboard,
+  Loader2,
   Lock,
   LogOut,
   Menu,
@@ -150,6 +151,44 @@ type BranchUpdate = {
   manager_name?: string;
   status: AuthBranch["status"];
 };
+
+type InventoryItem = {
+  id: string;
+  name: string;
+  description: string;
+  sku: string;
+  category: string;
+  cost: number;
+  price: number;
+  stock: number;
+  reorderAt: number;
+  unit: string;
+  branchId: string;
+  branchName: string;
+  status: "in_stock" | "low_stock" | "out_of_stock";
+  updatedAt: string;
+};
+
+type InventoryTotals = {
+  productCount: number;
+  lowStock: number;
+  stockValue: number;
+  categories: number;
+};
+
+function toProduct(item: InventoryItem): Product {
+  return { id: item.id, name: item.name, description: item.description, sku: item.sku, category: item.category, price: item.price, cost: item.cost, stock: item.stock, reorderAt: item.reorderAt, unit: item.unit };
+}
+
+function formatDateShort(value: string): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "—";
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) return new Intl.DateTimeFormat("en-GH", { hour: "numeric", minute: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat("en-GH", { day: "numeric", month: "short" }).format(date);
+}
 
 type NotificationItem = {
   id: string;
@@ -294,7 +333,7 @@ export function Workspace({ view }: { view: View }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All items");
-  const [customerId, setCustomerId] = useState("c4");
+  const [customerId, setCustomerId] = useState("");
   const [discount, setDiscount] = useState(0);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saleProcessing, setSaleProcessing] = useState(false);
@@ -339,6 +378,7 @@ export function Workspace({ view }: { view: View }) {
   const [paymentMethods, setPaymentMethods] = useState<string[]>(defaultPosState.paymentMethods);
   const [databaseStatus, setDatabaseStatus] = useState<"connecting" | "connected" | "offline">("connecting");
   const [stateReload, setStateReload] = useState(0);
+  const [openShift, setOpenShift] = useState<{ registerName: string; cashierName: string } | null>(null);
   const userId = user?.id;
   const userRole = user?.role;
   const viewRef = useRef(view);
@@ -512,6 +552,7 @@ export function Workspace({ view }: { view: View }) {
         if (cancelled) return;
         setProducts(state.products);
         setCustomers(state.customers);
+        setCustomerId((current) => state.customers.some((customer) => customer.id === current) ? current : state.customers[0]?.id ?? "");
         setSales(state.sales);
         setPurchases(state.purchases);
         setExpenses(state.expenses);
@@ -574,6 +615,28 @@ export function Workspace({ view }: { view: View }) {
     }
   }, [view, token, user]);
 
+  // ─── Fetch Open Register Shift (Checkout badge is real, not decorative) ──
+  useEffect(() => {
+    if (view !== "checkout" || !token) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const branchId = currentBranch && currentBranch !== "all" ? currentBranch.id : branches[0]?.id;
+        const response = await fetch(`/api/shifts${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ""}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json() as { current?: { shift?: { registerName?: string; cashierName?: string } | null } | null; openShifts?: Array<{ cashierId?: string; registerName?: string; cashierName?: string }> };
+        const mine = (data.openShifts ?? []).find((shift) => shift.cashierId === userId);
+        const shift = mine ?? data.current?.shift ?? null;
+        if (!cancelled) setOpenShift(shift && typeof shift.registerName === "string" ? { registerName: shift.registerName, cashierName: shift.cashierName || "" } : null);
+      } catch {
+        if (!cancelled) setOpenShift(null);
+      }
+    };
+    void load();
+    const interval = window.setInterval(() => void load(), 30000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [view, token, currentBranch, branches, stateReload]);
+
   // ─── Loading / auth guards are handled by RoutePage before Workspace renders ──
   if (!user) return <LoadingScreen />;
 
@@ -628,7 +691,8 @@ export function Workspace({ view }: { view: View }) {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const branchId = currentBranch && currentBranch !== "all" ? currentBranch.id : branches[0]?.id;
-      const response = await fetch("/api/sales", { method: "POST", headers, body: JSON.stringify({ customerId, branchId, idempotencyKey: saleIdempotencyKeyRef.current, items: cart.map(({ productId, qty, price }) => ({ productId, qty, price })), subtotal, discount, tax, total, method: paymentMethod, reference: mobileReference, amountPaid: paymentMethod === "Cash" ? cashReceived : total }) });
+      const validCustomerId = customers.some((customer) => customer.id === customerId) ? customerId : undefined;
+      const response = await fetch("/api/sales", { method: "POST", headers, body: JSON.stringify({ customerId: validCustomerId, branchId, idempotencyKey: saleIdempotencyKeyRef.current, items: cart.map(({ productId, qty }) => ({ productId, qty })), discount, method: paymentMethod, reference: mobileReference, amountPaid: paymentMethod === "Cash" ? cashReceived : undefined }) });
       const result = await response.json() as { sale?: Sale; receipt?: ReceiptData; state?: typeof defaultPosState; error?: string };
       if (!response.ok || !result.sale || !result.receipt) throw new Error(result.error || "Unable to complete the sale. No changes were made.");
       if (result.state) { setSales(result.state.sales); setProducts(result.state.products); setCustomers(result.state.customers); }
@@ -656,9 +720,8 @@ export function Workspace({ view }: { view: View }) {
       setModal(null);
       notify(`Sale ${saleId} voided. Stock returned.`);
     } catch {
-      setSales((prev) => prev.map((s) => s.id === saleId ? { ...s, total: 0 } : s));
       setModal(null);
-      notify(`Sale ${saleId} voided (offline record).`);
+      notify("Could not void the sale. Check your connection and try again. No changes were made.");
     }
   }
 
@@ -680,14 +743,12 @@ export function Workspace({ view }: { view: View }) {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await fetch("/api/products", { method: "POST", headers, body: JSON.stringify(product) });
-      if (!response.ok) throw new Error();
-      const saved = await response.json() as Product;
-      setProducts((current) => [...current, saved]); setModal(null); notify("Product added to inventory.");
-    } catch {
-      const mock: Product = { id: `p-${Date.now()}`, ...product };
-      setProducts((prev) => [...prev, mock]);
-      setModal(null);
-      notify("Product added to inventory.");
+      const data = await response.json() as Product | { error?: string };
+      if (!response.ok) throw new Error("error" in data && data.error ? data.error : "Product could not be added. No changes were made.");
+      const saved = data as Product;
+      setProducts((current) => [...current, saved]); setModal(null); setStateReload((key) => key + 1); notify("Product added to inventory.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Product could not be added. No changes were made. Please try again.");
     }
   }
 
@@ -701,9 +762,10 @@ export function Workspace({ view }: { view: View }) {
       setProducts((current) => current.map((item) => item.id === product.id ? { ...item, ...data.product } : item));
       setEditingProduct(null);
       setModal(null);
+      setStateReload((key) => key + 1);
       notify("Product details saved. Price history was recorded.");
     } catch (error) {
-      notify(error instanceof Error ? error.message : "Product update failed.");
+      notify(error instanceof Error ? error.message : "Product update failed. No changes were made.");
     }
   }
 
@@ -714,9 +776,10 @@ export function Workspace({ view }: { view: View }) {
       if (!response.ok || !data.products) throw new Error(data.error || "Opening inventory import failed.");
       setProducts((current) => [...current, ...data.products!]);
       setModal(null);
+      setStateReload((key) => key + 1);
       notify(`${data.products.length} opening inventory item${data.products.length === 1 ? "" : "s"} saved.`);
     } catch (error) {
-      notify(error instanceof Error ? error.message : "Opening inventory import failed.");
+      notify(error instanceof Error ? error.message : "Opening inventory import failed. No changes were made.");
     }
   }
 
@@ -727,9 +790,10 @@ export function Workspace({ view }: { view: View }) {
       if (!response.ok) throw new Error(data.error || "Stock count could not be committed.");
       setProducts((current) => current.map((product) => { const row = rows.find((item) => item.productId === product.id); return row ? { ...product, stock: row.physicalQuantity } : product; }));
       setModal(null);
+      setStateReload((key) => key + 1);
       notify("Physical stock count committed with an audit reason.");
     } catch (error) {
-      notify(error instanceof Error ? error.message : "Stock count could not be committed.");
+      notify(error instanceof Error ? error.message : "Stock count could not be committed. No changes were made.");
     }
   }
 
@@ -738,14 +802,12 @@ export function Workspace({ view }: { view: View }) {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await fetch("/api/customers", { method: "POST", headers, body: JSON.stringify(customer) });
-      if (!response.ok) throw new Error();
-      const saved = await response.json() as Customer;
+      const data = await response.json() as Customer | { error?: string };
+      if (!response.ok) throw new Error("error" in data && data.error ? data.error : "Customer profile could not be created. No changes were made.");
+      const saved = data as Customer;
       setCustomers((current) => [...current, saved]); setModal(null); notify("Customer profile created.");
-    } catch {
-      const mock: Customer = { id: `c-${Date.now()}`, name: customer.name, phone: customer.phone, credit: 0, visits: 0 };
-      setCustomers((prev) => [...prev, mock]);
-      setModal(null);
-      notify("Customer profile created.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Customer profile could not be created. No changes were made. Please try again.");
     }
   }
 
@@ -754,14 +816,12 @@ export function Workspace({ view }: { view: View }) {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await fetch("/api/purchases", { method: "POST", headers, body: JSON.stringify(purchase) });
-      if (!response.ok) throw new Error();
-      const saved = await response.json() as Purchase;
+      const data = await response.json() as Purchase | { error?: string };
+      if (!response.ok) throw new Error("error" in data && data.error ? data.error : "Purchase order could not be recorded. No changes were made.");
+      const saved = data as Purchase;
       setPurchases((current) => [saved, ...current]); setModal(null); notify("Purchase order recorded.");
-    } catch {
-      const mock: Purchase = { id: `PO-${Date.now().toString().slice(-4)}`, ...purchase };
-      setPurchases((prev) => [mock, ...prev]);
-      setModal(null);
-      notify("Purchase order recorded.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Purchase order could not be recorded. No changes were made. Please try again.");
     }
   }
 
@@ -770,14 +830,12 @@ export function Workspace({ view }: { view: View }) {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await fetch("/api/expenses", { method: "POST", headers, body: JSON.stringify(expense) });
-      if (!response.ok) throw new Error();
-      const saved = await response.json() as Expense;
+      const data = await response.json() as Expense | { error?: string };
+      if (!response.ok) throw new Error("error" in data && data.error ? data.error : "Expense could not be recorded. No changes were made.");
+      const saved = data as Expense;
       setExpenses((current) => [saved, ...current]); setModal(null); notify("Expense recorded.");
-    } catch {
-      const mock: Expense = { id: `EX-${Date.now().toString().slice(-4)}`, ...expense };
-      setExpenses((prev) => [mock, ...prev]);
-      setModal(null);
-      notify("Expense recorded.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Expense could not be recorded. No changes were made. Please try again.");
     }
   }
 
@@ -787,12 +845,14 @@ export function Workspace({ view }: { view: View }) {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
        const response = await fetch(`/api/products/${adjustProduct.id}`, { method: "PATCH", headers, body: JSON.stringify({ amount, note }) });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const data = await response.json() as { error?: string };
+        throw new Error(data.error || "Stock adjustment could not be recorded. No changes were made.");
+      }
       setProducts((current) => current.map((product) => product.id === adjustProduct.id ? { ...product, stock: Math.max(0, product.stock + amount) } : product));
-      setModal(null); notify("Stock movement recorded.");
-    } catch {
-      setProducts((current) => current.map((product) => product.id === adjustProduct.id ? { ...product, stock: Math.max(0, product.stock + amount) } : product));
-      setModal(null); notify("Stock movement recorded (local).");
+      setModal(null); setStateReload((key) => key + 1); notify("Stock movement recorded.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Stock adjustment could not be recorded. No changes were made.");
     }
   }
 
@@ -984,10 +1044,12 @@ export function Workspace({ view }: { view: View }) {
               receipt={receipt}
               onNewSale={() => setReceipt(null)}
               userRole={user.role}
+              openShift={openShift}
+              onOpenCashUp={() => navigate("reconciliation")}
             />
           )}
 
-          {view === "inventory" && <NotebookInventoryView products={products} lowStock={lowStock} search={search} setSearch={setSearch} onAdd={() => setModal("product")} onBulk={() => setModal("bulkInventory")} onCount={() => setModal("stockCount")} onEdit={(product) => { setEditingProduct(product); setModal("editProduct"); }} userRole={user.role} />}
+          {view === "inventory" && <InventoryListing token={token} branches={branches} currentBranchId={currentBranch === "all" ? undefined : currentBranch?.id} userRole={user.role} onAdd={() => setModal("product")} onBulk={() => setModal("bulkInventory")} onCount={() => setModal("stockCount")} onEdit={(product) => { setEditingProduct(product); setModal("editProduct"); }} onAdjust={(product) => { setAdjustProduct(product); setModal("adjust"); }} reloadKey={stateReload} />}
           {view === "transfers" && <TransfersView transfers={transfers} branches={branches} products={products} onAdd={() => setModal("addTransfer")} onRefresh={() => { fetch("/api/transfers", { headers: { Authorization: `Bearer ${token}` } }).then(r=>r.json()).then((data) => setTransfers(Array.isArray(data) ? (data as StockTransfer[]) : [])); }} />}
           {view === "customers" && <CustomersView customers={customers} onAdd={() => setModal("customer")} />}
            {view === "sales" && <SalesView sales={sales} onNotify={notify} onVoid={(sale) => { setTargetVoidSale(sale); setModal("voidSale"); }} onRefund={(sale) => { setTargetRefundSale(sale); setModal("refundRequest"); }} onReprint={(sale) => void reprintReceipt(sale.id)} userRole={user.role} />}
@@ -1377,9 +1439,9 @@ function DashboardView({
 }
 
 // ─── CHECKOUT VIEW WITH CASHIER DISCOUNT CAP & MOMO REFERENCE ─────────
-function CheckoutView({ products, categories, category, setCategory, search, setSearch, cart, addToCart, changeQty, setCart, customers, customerId, setCustomerId, discount, onDiscountChange, subtotal, tax, total, taxEnabled, taxRate, onPay, receipt, onNewSale, userRole }: { products: Product[]; categories: string[]; category: string; setCategory: (value: string) => void; search: string; setSearch: (value: string) => void; cart: CartItem[]; addToCart: (product: Product) => void; changeQty: (id: string, amount: number) => void; setCart: (cart: CartItem[]) => void; customers: Customer[]; customerId: string; setCustomerId: (value: string) => void; discount: number; onDiscountChange: (val: number) => void; subtotal: number; tax: number; total: number; taxEnabled: boolean; taxRate: number; onPay: () => void; receipt: ReceiptData | null; onNewSale: () => void; userRole: Role }) {
+function CheckoutView({ products, categories, category, setCategory, search, setSearch, cart, addToCart, changeQty, setCart, customers, customerId, setCustomerId, discount, onDiscountChange, subtotal, tax, total, taxEnabled, taxRate, onPay, receipt, onNewSale, userRole, openShift, onOpenCashUp }: { products: Product[]; categories: string[]; category: string; setCategory: (value: string) => void; search: string; setSearch: (value: string) => void; cart: CartItem[]; addToCart: (product: Product) => void; changeQty: (id: string, amount: number) => void; setCart: (cart: CartItem[]) => void; customers: Customer[]; customerId: string; setCustomerId: (value: string) => void; discount: number; onDiscountChange: (val: number) => void; subtotal: number; tax: number; total: number; taxEnabled: boolean; taxRate: number; onPay: () => void; receipt: ReceiptData | null; onNewSale: () => void; userRole: Role; openShift: { registerName: string; cashierName: string } | null; onOpenCashUp: () => void }) {
   if (receipt) return <ReceiptScreen receipt={receipt} onNewSale={onNewSale} />;
-  return <div className="checkout-layout"><section className="checkout-catalog"><PageHeader eyebrow="Point of sale" title="Checkout" description="Search, scan, and add products to the customer bill." action={<div className="register-badge"><span className="live-dot" /> Register open <strong>01</strong></div>} /><div className="catalog-toolbar"><div className="search-field"><Search size={19} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by item, SKU or barcode" /><kbd>⌘ K</kbd></div><button className="scan-button" onClick={() => setSearch("DP-")}><ScanLine size={18} /> Scan barcode</button></div><div className="category-tabs">{categories.map((item) => <button key={item} className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><div className="product-grid">{products.map((product) => <button key={product.id} className="product-card" onClick={() => addToCart(product)} disabled={product.stock === 0}><span className={`product-art art-${product.category.toLowerCase()}`}><PackageOpen size={28} /></span><span className="product-info"><strong>{product.name}</strong><small>{product.sku} · {product.stock} in stock</small></span><span className="product-bottom"><b>{money(product.price)}</b><span className={product.stock <= product.reorderAt ? "stock-warning" : "stock-ok"}>{product.stock <= product.reorderAt ? "Low stock" : "Available"}</span></span><span className="add-product"><Plus size={18} /></span></button>)}</div>{products.length === 0 && <div className="empty-state"><Search size={28} /><h3>No items found</h3><p>Try another product name, SKU, or category.</p></div>}</section><aside className="cart-panel"><div className="cart-head"><div><p className="eyebrow">Current order</p><h2>New sale</h2></div><span className="cart-count">{cart.reduce((sum, item) => sum + item.qty, 0)} items</span></div>{cart.length === 0 ? <div className="cart-empty"><span><ShoppingCart size={25} /></span><h3>Your cart is empty</h3><p>Select products from the catalog to start a sale.</p></div> : <div className="cart-items">{cart.map((item) => <div className="cart-line" key={item.productId}><div className="cart-line-info"><strong>{item.name}</strong><small>{money(item.price)} each</small></div><div className="qty-control"><button onClick={() => changeQty(item.productId, -1)} aria-label={`Decrease ${item.name}`}><Minus size={14} /></button><span>{item.qty}</span><button onClick={() => changeQty(item.productId, 1)} aria-label={`Increase ${item.name}`}><Plus size={14} /></button></div><strong className="line-total">{money(item.price * item.qty)}</strong><IconButton label={`Remove ${item.name}`} onClick={() => setCart(cart.filter((line) => line.productId !== item.productId))}><Trash2 size={15} /></IconButton></div>)}</div>}<div className="cart-controls"><label>Customer<select value={customerId} onChange={(event) => setCustomerId(event.target.value)}>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.credit > 0 ? ` · Owes ${money(customer.credit)}` : ""}</option>)}</select></label><label>Discount (Cap: {userRole === "cashier" ? "5%" : userRole === "manager" ? "15%" : "Unlimited"})<input type="number" min="0" value={discount || ""} onChange={(event) => onDiscountChange(Number(event.target.value) || 0)} placeholder="GH₵ 0.00" /></label>{userRole === "cashier" && <div className="override-banner"><Lock size={14} /> Cashiers limited to 5% max discount. High discounts prompt manager override.</div>}</div><div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>{discount > 0 && <div><span>Discount</span><strong className="discount-value">− {money(discount)}</strong></div>}<div><span>{taxEnabled ? `VAT (${taxRate}%)` : "Tax"}</span><strong>{taxEnabled ? money(tax) : "Not applied"}</strong></div><div className="total-row"><span>Total</span><strong>{money(total)}</strong></div></div><button className="button primary pay-button" disabled={!cart.length} onClick={onPay}>Continue to payment <ArrowRight size={18} /></button><p className="secure-note"><RefreshCcw size={14} /> Changes are saved to this register</p></aside></div>;
+  return <div className="checkout-layout"><section className="checkout-catalog"><PageHeader eyebrow="Point of sale" title="Checkout" description="Search, scan, and add products to the customer bill." action={openShift ? <span className="register-badge"><span className="live-dot" /> Register open <strong>{openShift.registerName}</strong></span> : <span className="register-badge"><span className="off-dot" /> No shift open — <button className="text-button" onClick={onOpenCashUp}>open one in Cash-up</button></span>} /><div className="catalog-toolbar"><div className="search-field"><Search size={19} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by item, SKU or barcode" /><kbd>⌘ K</kbd></div><button className="scan-button" onClick={() => setSearch("DP-")}><ScanLine size={18} /> Scan barcode</button></div><div className="category-tabs">{categories.map((item) => <button key={item} className={category === item ? "active" : ""} onClick={() => setCategory(item)}>{item}</button>)}</div><div className="product-grid">{products.map((product) => <button key={product.id} className="product-card" onClick={() => addToCart(product)} disabled={product.stock === 0}><span className={`product-art art-${product.category.toLowerCase()}`}><PackageOpen size={28} /></span><span className="product-info"><strong>{product.name}</strong><small>{product.sku} · {product.stock} in stock</small></span><span className="product-bottom"><b>{money(product.price)}</b><span className={product.stock <= product.reorderAt ? "stock-warning" : "stock-ok"}>{product.stock <= product.reorderAt ? "Low stock" : "Available"}</span></span><span className="add-product"><Plus size={18} /></span></button>)}</div>{products.length === 0 && <div className="empty-state"><Search size={28} /><h3>No items found</h3><p>Try another product name, SKU, or category.</p></div>}</section><aside className="cart-panel"><div className="cart-head"><div><p className="eyebrow">Current order</p><h2>New sale</h2></div><span className="cart-count">{cart.reduce((sum, item) => sum + item.qty, 0)} items</span></div>{cart.length === 0 ? <div className="cart-empty"><span><ShoppingCart size={25} /></span><h3>Your cart is empty</h3><p>Select products from the catalog to start a sale.</p></div> : <div className="cart-items">{cart.map((item) => <div className="cart-line" key={item.productId}><div className="cart-line-info"><strong>{item.name}</strong><small>{money(item.price)} each</small></div><div className="qty-control"><button onClick={() => changeQty(item.productId, -1)} aria-label={`Decrease ${item.name}`}><Minus size={14} /></button><span>{item.qty}</span><button onClick={() => changeQty(item.productId, 1)} aria-label={`Increase ${item.name}`}><Plus size={14} /></button></div><strong className="line-total">{money(item.price * item.qty)}</strong><IconButton label={`Remove ${item.name}`} onClick={() => setCart(cart.filter((line) => line.productId !== item.productId))}><Trash2 size={15} /></IconButton></div>)}</div>}<div className="cart-controls"><label>Customer<select value={customerId} onChange={(event) => setCustomerId(event.target.value)}>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.credit > 0 ? ` · Owes ${money(customer.credit)}` : ""}</option>)}</select></label><label>Discount (Cap: {userRole === "cashier" ? "5%" : userRole === "manager" ? "15%" : "Unlimited"})<input type="number" min="0" value={discount || ""} onChange={(event) => onDiscountChange(Number(event.target.value) || 0)} placeholder="GH₵ 0.00" /></label>{userRole === "cashier" && <div className="override-banner"><Lock size={14} /> Cashiers limited to 5% max discount. High discounts prompt manager override.</div>}</div><div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>{discount > 0 && <div><span>Discount</span><strong className="discount-value">− {money(discount)}</strong></div>}<div><span>{taxEnabled ? `VAT (${taxRate}%)` : "Tax"}</span><strong>{taxEnabled ? money(tax) : "Not applied"}</strong></div><div className="total-row"><span>Total</span><strong>{money(total)}</strong></div></div><button className="button primary pay-button" disabled={!cart.length} onClick={onPay}>Continue to payment <ArrowRight size={18} /></button><p className="secure-note"><RefreshCcw size={14} /> Changes are saved to this register</p></aside></div>;
 }
 
 // ─── TRANSFERS VIEW (Stock Transfers Manifests) ──────────────────────
@@ -1585,14 +1647,80 @@ function ManagerOverrideModal({ targetDiscount, onClose, onSuccess }: { targetDi
 
 // ─── REUSED SUB-COMPONENTS ───────────────────────────────────────────
 function CustomersView({ customers, onAdd }: { customers: Customer[]; onAdd: () => void }) { return <><PageHeader eyebrow="Relationships" title="Customers" description="Know your regulars, record credit, and grow repeat business." action={<button className="button primary" onClick={onAdd}><Plus size={18} /> Add customer</button>} /><div className="metric-row"><Metric label="Customer profiles" value={customers.length.toString()} icon={<UsersRound size={19} />} /><Metric label="Outstanding credit" value={money(customers.reduce((sum, customer) => sum + customer.credit, 0))} icon={<WalletCards size={19} />} tone="warning" /><Metric label="Returning customers" value="68%" icon={<RefreshCcw size={19} />} /></div><section className="panel table-panel"><div className="panel-toolbar"><div><h2>Customer book</h2><p>Profiles and credit balances at a glance.</p></div><button className="button secondary"><Download size={17} /> Export</button></div><DataTable headers={["Customer", "Phone", "Visits", "Credit balance", ""]}>{customers.map((customer) => <tr key={customer.id}><td><div className="person-cell"><span className="person-avatar">{customer.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</span><strong>{customer.name}</strong></div></td><td>{customer.phone || "—"}</td><td>{customer.visits}</td><td className={customer.credit ? "credit-due" : "muted"}>{customer.credit ? money(customer.credit) : "No balance"}</td><td><button className="table-action">View profile <ArrowRight size={15} /></button></td></tr>)}</DataTable></section></>; }
-function NotebookInventoryView({ products, lowStock, search, setSearch, onAdd, onBulk, onCount, onEdit, userRole }: { products: Product[]; lowStock: Product[]; search: string; setSearch: (value: string) => void; onAdd: () => void; onBulk: () => void; onCount: () => void; onEdit: (product: Product) => void; userRole: Role }) {
-  const term = search.trim().toLowerCase();
-  const filtered = products.filter((product) => [product.name, product.description ?? "", product.sku, product.category].some((value) => value.toLowerCase().includes(term)));
-  const canManage = userRole === "owner" || userRole === "manager";
+function InventoryListing({ token, branches, currentBranchId, userRole, onEdit, onAdjust, onAdd, onBulk, onCount, reloadKey }: { token: string | null; branches: AuthBranch[]; currentBranchId: string | undefined; userRole: Role; onEdit: (product: Product) => void; onAdjust: (product: Product) => void; onAdd: () => void; onBulk: () => void; onCount: () => void; reloadKey: number }) {
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All categories");
+  const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState("name");
+  const [branchFilter, setBranchFilter] = useState(currentBranchId && currentBranchId !== "all" ? currentBranchId : "all");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [totals, setTotals] = useState({ productCount: 0, lowStock: 0, stockValue: 0, categories: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const canManage = userRole === "owner" || userRole === "manager" || userRole === "stock_officer";
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { setSearch(searchInput); setPage(1); }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort });
+    if (search.trim()) params.set("search", search.trim());
+    if (category !== "All categories") params.set("category", category);
+    if (status !== "all") params.set("status", status);
+    if (branchFilter !== "all") params.set("branchId", branchFilter);
+    setLoading(true);
+    setError("");
+    fetch(`/api/products?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json() as { items?: InventoryItem[]; total?: number; totalPages?: number; categories?: string[]; totals?: InventoryTotals; error?: string };
+        if (!response.ok || !data.items) throw new Error(data.error || "Inventory could not be loaded.");
+        if (cancelled) return;
+        setItems(data.items);
+        setTotal(data.total ?? 0);
+        setTotalPages(data.totalPages ?? 1);
+        if (Array.isArray(data.categories)) setCategories(data.categories);
+        if (data.totals) setTotals(data.totals);
+        setLoading(false);
+      })
+      .catch((err) => { if (!cancelled) { setError(err instanceof Error ? err.message : "Inventory could not be loaded."); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [token, page, pageSize, search, category, status, sort, branchFilter, reloadKey]);
+
+  const resetFilters = () => { setSearchInput(""); setSearch(""); setCategory("All categories"); setStatus("all"); setSort("name"); setBranchFilter(currentBranchId && currentBranchId !== "all" ? currentBranchId : "all"); setPage(1); };
+  const showCount = Math.min(page * pageSize, total);
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+
   return <>
-    <PageHeader eyebrow="Product control" title="Inventory" description="A simple notebook view of what you have, what it costs, and what is on the shelf." action={userRole !== "cashier" ? <div className="inventory-actions"><button className="button secondary" onClick={onBulk}><Upload size={17} /> Bulk opening stock</button><button className="button primary" onClick={onAdd}><Plus size={18} /> Quick add</button></div> : undefined} />
-    <div className="metric-row"><Metric label="Products" value={products.length.toString()} icon={<PackageOpen size={19} />} /><Metric label="Need attention" value={lowStock.length.toString()} icon={<CircleAlert size={19} />} tone="warning" /><Metric label="Stock value" value={money(products.reduce((sum, product) => sum + product.price * product.stock, 0))} icon={<BarChart3 size={19} />} /><Metric label="Product groups" value={new Set(products.map((product) => product.category).filter(Boolean)).size.toString()} icon={<Store size={19} />} /></div>
-    <section className="panel table-panel notebook-panel"><div className="panel-toolbar"><div><p className="eyebrow">Notebook view</p><h2>Current stock</h2><p>Search by product name, size, description, category, or SKU.</p></div><div className="inventory-toolbar-actions"><div className="search-field compact"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Caro, 500ml, S/S..." /></div>{userRole !== "cashier" && <button className="button secondary" onClick={onCount}><PackageOpen size={17} /> Stock count</button>}</div></div><DataTable headers={["Product", "Description / Size", "Selling price", "Quantity", "Status", ""]}>{filtered.map((product) => { const hasThreshold = product.reorderAt > 0; const low = hasThreshold && product.stock <= product.reorderAt; return <tr key={product.id}><td><div className="table-product"><span className={`mini-art art-${(product.category || "other").toLowerCase()}`}><PackageOpen size={17} /></span><strong>{product.name}</strong></div></td><td>{product.description || <span className="muted">-</span>}</td><td className="strong-number">{money(product.price)}</td><td><strong>{product.stock}</strong> <span className="muted">{product.unit || "piece"}{product.stock === 1 ? "" : "s"}</span></td><td><StatusPill tone={product.stock === 0 ? "danger" : low ? "warning" : "success"}>{product.stock === 0 ? "Out of stock" : low ? "Low stock" : "OK"}</StatusPill></td><td>{canManage && <button className="table-action" onClick={() => onEdit(product)}>Edit details <ArrowRight size={14} /></button>}</td></tr>; })}</DataTable>{filtered.length === 0 && <div className="empty-state"><Search size={28} /><h3>No products found</h3><p>Try the product name, size, or description exactly as it appears in the notebook.</p></div>}</section>
+    <PageHeader eyebrow="Product control" title="Inventory" description="See every product, price, and stock count — search, filter, and manage in one place." action={canManage ? <div className="inventory-actions"><button className="button secondary" onClick={onBulk}><Upload size={17} /> Bulk opening stock</button><button className="button primary" onClick={onAdd}><Plus size={18} /> Quick add</button></div> : undefined} />
+    <div className="metric-row"><Metric label="Products" value={loading ? "…" : totals.productCount.toString()} icon={<PackageOpen size={19} />} /><Metric label="Need attention" value={loading ? "…" : totals.lowStock.toString()} icon={<CircleAlert size={19} />} tone="warning" /><Metric label="Stock value" value={loading ? "…" : money(totals.stockValue)} icon={<BarChart3 size={19} />} /><Metric label="Product groups" value={loading ? "…" : totals.categories.toString()} icon={<Store size={19} />} /></div>
+    <section className="panel table-panel">
+      <div className="panel-toolbar listing-toolbar">
+        <div className="search-field compact"><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search by name, SKU or description…" /></div>
+        <select className="listing-select" aria-label="Filter by category" value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }}><option>All categories</option>{categories.map((item) => <option key={item}>{item}</option>)}</select>
+        <select className="listing-select" aria-label="Filter by stock status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="all">All stock</option><option value="in_stock">In stock</option><option value="low_stock">Low stock</option><option value="out_of_stock">Out of stock</option></select>
+        {branches.length > 1 && <select className="listing-select" aria-label="Filter by branch" value={branchFilter} onChange={(event) => { setBranchFilter(event.target.value); setPage(1); }}><option value="all">All branches</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>}
+        <select className="listing-select" aria-label="Sort products" value={sort} onChange={(event) => { setSort(event.target.value); setPage(1); }}><option value="name">Sort: Name</option><option value="selling_price">Sort: Price</option><option value="stock_quantity">Sort: Stock</option><option value="updated_at">Sort: Last updated</option></select>
+        <select className="listing-select" aria-label="Page size" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={25}>25 per page</option><option value={50}>50 per page</option><option value={100}>100 per page</option></select>
+        {canManage && <button className="button secondary small-inline" onClick={onCount}><PackageOpen size={16} /> Stock count</button>}
+        {(searchInput || category !== "All categories" || status !== "all" || branchFilter !== "all") && <button className="filter-button" onClick={resetFilters}><X size={14} /> Clear</button>}
+      </div>
+      {loading ? <div className="empty-state"><Loader2 size={28} className="spin" /><h3>Loading inventory…</h3></div> : error ? <div className="empty-state"><CircleAlert size={28} /><h3>We couldn't load inventory.</h3><p>{error}</p><button className="button secondary" onClick={() => setPage(page)}>Retry</button></div> : items.length === 0 ? <div className="empty-state"><Search size={28} /><h3>No products found</h3><p>Try changing your search or filters, or add your first product.</p></div> : (
+        <>
+          <div className="table-scroll"><table className="listing-table"><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th className="num">Sell price</th><th className="num">Stock</th><th>Status</th><th>Branch</th><th>Updated</th><th className="actions-col">Actions</th></tr></thead><tbody>{items.map((product) => { const low = product.reorderAt > 0 && product.stock <= product.reorderAt; return <tr key={product.id} className="listing-row"><td data-label="Product"><div className="table-product"><span className={`mini-art art-${(product.category || "other").toLowerCase()}`}><PackageOpen size={17} /></span><div><strong>{product.name}</strong>{product.description && <small className="table-sub">{product.description}</small>}</div></div></td><td data-label="SKU" className="mono">{product.sku}</td><td data-label="Category">{product.category}</td><td data-label="Sell price" className="num strong-number">{money(product.price)}</td><td data-label="Stock" className="num"><strong>{product.stock}</strong> <span className="muted">{product.unit || "piece"}</span></td><td data-label="Status"><StatusPill tone={product.stock === 0 ? "danger" : low ? "warning" : "success"}>{product.stock === 0 ? "Out of stock" : low ? "Low stock" : "In stock"}</StatusPill></td><td data-label="Branch">{product.branchName || "—"}</td><td data-label="Updated" className="muted">{formatDateShort(product.updatedAt)}</td><td data-label="Actions" className="actions-col">{canManage && <div className="row-actions"><button className="table-action" onClick={() => onEdit(toProduct(product))}>Edit</button><button className="table-action muted-action" onClick={() => onAdjust(toProduct(product))}>Adjust</button></div>}</td></tr>; })}</tbody></table></div>
+          <div className="pagination-bar"><span>Showing {from}–{showCount} of {total} products</span><div className="pagination-controls"><button className="page-button" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹ Prev</button>{Array.from({ length: Math.min(totalPages, 5) }, (_, index) => index + 1).map((num) => <button key={num} className={`page-button ${num === page ? "active" : ""}`} onClick={() => setPage(num)}>{num}</button>)}<button className="page-button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next ›</button></div></div>
+        </>
+      )}
+    </section>
   </>;
 }
 
