@@ -1682,7 +1682,18 @@ function InventoryListing({ token, branches, currentBranchId, userRole, onEdit, 
     setError("");
     fetch(`/api/products?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" })
       .then(async (response) => {
-        const data = await response.json() as { items?: InventoryItem[]; total?: number; totalPages?: number; categories?: string[]; totals?: InventoryTotals; error?: string };
+        const contentType = response.headers.get("content-type") || "";
+        const body = await response.text();
+        let data: { items?: InventoryItem[]; total?: number; totalPages?: number; categories?: string[]; totals?: InventoryTotals; error?: string } = {};
+        if (contentType.includes("application/json")) {
+          try {
+            data = JSON.parse(body) as typeof data;
+          } catch {
+            throw new Error("Inventory service returned an invalid response. Please retry.");
+          }
+        } else {
+          throw new Error("Inventory service is unavailable. Please retry in a moment.");
+        }
         if (!response.ok || !data.items) throw new Error(data.error || "Inventory could not be loaded.");
         if (cancelled) return;
         setItems(data.items);
