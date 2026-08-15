@@ -742,7 +742,8 @@ export function Workspace({ view }: { view: View }) {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      const response = await fetch("/api/products", { method: "POST", headers, body: JSON.stringify(product) });
+      const branchId = currentBranch && currentBranch !== "all" ? currentBranch.id : undefined;
+      const response = await fetch("/api/products", { method: "POST", headers, body: JSON.stringify({ ...product, branchId }) });
       const data = await response.json() as Product | { error?: string };
       if (!response.ok) throw new Error("error" in data && data.error ? data.error : "Product could not be added. No changes were made.");
       const saved = data as Product;
@@ -771,7 +772,8 @@ export function Workspace({ view }: { view: View }) {
 
   async function importOpeningInventory(rows: BulkRow[]) {
     try {
-      const response = await fetch("/api/products/bulk", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ items: rows }) });
+      const branchId = currentBranch && currentBranch !== "all" ? currentBranch.id : undefined;
+      const response = await fetch("/api/products/bulk", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ items: rows, branchId }) });
       const data = await response.json() as { products?: Product[]; error?: string };
       if (!response.ok || !data.products) throw new Error(data.error || "Opening inventory import failed.");
       setProducts((current) => [...current, ...data.products!]);
@@ -785,7 +787,8 @@ export function Workspace({ view }: { view: View }) {
 
   async function commitStockCount(rows: Array<{ productId: string; physicalQuantity: number }>, reason: string) {
     try {
-      const response = await fetch("/api/products/stock-count", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ rows, reason }) });
+      const branchId = currentBranch && currentBranch !== "all" ? currentBranch.id : undefined;
+      const response = await fetch("/api/products/stock-count", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ rows, reason, branchId }) });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || "Stock count could not be committed.");
       setProducts((current) => current.map((product) => { const row = rows.find((item) => item.productId === product.id); return row ? { ...product, stock: row.physicalQuantity } : product; }));
@@ -1663,6 +1666,7 @@ function InventoryListing({ token, branches, currentBranchId, userRole, onEdit, 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [reload, setReload] = useState(0);
   const canManage = userRole === "owner" || userRole === "manager" || userRole === "stock_officer";
 
   useEffect(() => {
@@ -1705,15 +1709,17 @@ function InventoryListing({ token, branches, currentBranchId, userRole, onEdit, 
       })
       .catch((err) => { if (!cancelled) { setError(err instanceof Error ? err.message : "Inventory could not be loaded."); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [token, page, pageSize, search, category, status, sort, branchFilter, reloadKey]);
+  }, [token, page, pageSize, search, category, status, sort, branchFilter, reloadKey, reload]);
 
   const resetFilters = () => { setSearchInput(""); setSearch(""); setCategory("All categories"); setStatus("all"); setSort("name"); setBranchFilter(currentBranchId && currentBranchId !== "all" ? currentBranchId : "all"); setPage(1); };
   const showCount = Math.min(page * pageSize, total);
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const summaryValue = (value: string) => (loading ? "…" : error ? "—" : value);
+  const retry = () => { setError(""); setReload((key) => key + 1); };
 
   return <>
     <PageHeader eyebrow="Product control" title="Inventory" description="See every product, price, and stock count — search, filter, and manage in one place." action={canManage ? <div className="inventory-actions"><button className="button secondary" onClick={onBulk}><Upload size={17} /> Bulk opening stock</button><button className="button primary" onClick={onAdd}><Plus size={18} /> Quick add</button></div> : undefined} />
-    <div className="metric-row"><Metric label="Products" value={loading ? "…" : totals.productCount.toString()} icon={<PackageOpen size={19} />} /><Metric label="Need attention" value={loading ? "…" : totals.lowStock.toString()} icon={<CircleAlert size={19} />} tone="warning" /><Metric label="Stock value" value={loading ? "…" : money(totals.stockValue)} icon={<BarChart3 size={19} />} /><Metric label="Product groups" value={loading ? "…" : totals.categories.toString()} icon={<Store size={19} />} /></div>
+    <div className="metric-row"><Metric label="Products" value={summaryValue(totals.productCount.toString())} icon={<PackageOpen size={19} />} /><Metric label="Need attention" value={summaryValue(totals.lowStock.toString())} icon={<CircleAlert size={19} />} tone="warning" /><Metric label="Stock value" value={summaryValue(money(totals.stockValue))} icon={<BarChart3 size={19} />} /><Metric label="Product groups" value={summaryValue(totals.categories.toString())} icon={<Store size={19} />} /></div>
     <section className="panel table-panel">
       <div className="panel-toolbar listing-toolbar">
         <div className="search-field compact"><Search size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search by name, SKU or description…" /></div>
@@ -1725,7 +1731,7 @@ function InventoryListing({ token, branches, currentBranchId, userRole, onEdit, 
         {canManage && <button className="button secondary small-inline" onClick={onCount}><PackageOpen size={16} /> Stock count</button>}
         {(searchInput || category !== "All categories" || status !== "all" || branchFilter !== "all") && <button className="filter-button" onClick={resetFilters}><X size={14} /> Clear</button>}
       </div>
-      {loading ? <div className="empty-state"><Loader2 size={28} className="spin" /><h3>Loading inventory…</h3></div> : error ? <div className="empty-state"><CircleAlert size={28} /><h3>We couldn't load inventory.</h3><p>{error}</p><button className="button secondary" onClick={() => setPage(page)}>Retry</button></div> : items.length === 0 ? <div className="empty-state"><Search size={28} /><h3>No products found</h3><p>Try changing your search or filters, or add your first product.</p></div> : (
+      {loading ? <div className="empty-state"><Loader2 size={28} className="spin" /><h3>Loading inventory…</h3></div> : error ? <div className="empty-state"><CircleAlert size={28} /><h3>We couldn't load inventory.</h3><p>{error}</p><button className="button secondary" onClick={retry}><RefreshCcw size={16} /> Retry</button></div> : items.length === 0 ? (total === 0 && !search && category === "All categories" && status === "all" ? <div className="empty-state"><PackageOpen size={28} /><h3>No products have been added yet.</h3><p>Use Quick add or Bulk opening stock to set up your inventory.</p></div> : <div className="empty-state"><Search size={28} /><h3>No matching products</h3><p>Try changing your search or filters.</p></div>) : (
         <>
           <div className="table-scroll"><table className="listing-table"><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th className="num">Sell price</th><th className="num">Stock</th><th>Status</th><th>Branch</th><th>Updated</th><th className="actions-col">Actions</th></tr></thead><tbody>{items.map((product) => { const low = product.reorderAt > 0 && product.stock <= product.reorderAt; return <tr key={product.id} className="listing-row"><td data-label="Product"><div className="table-product"><span className={`mini-art art-${(product.category || "other").toLowerCase()}`}><PackageOpen size={17} /></span><div><strong>{product.name}</strong>{product.description && <small className="table-sub">{product.description}</small>}</div></div></td><td data-label="SKU" className="mono">{product.sku}</td><td data-label="Category">{product.category}</td><td data-label="Sell price" className="num strong-number">{money(product.price)}</td><td data-label="Stock" className="num"><strong>{product.stock}</strong> <span className="muted">{product.unit || "piece"}</span></td><td data-label="Status"><StatusPill tone={product.stock === 0 ? "danger" : low ? "warning" : "success"}>{product.stock === 0 ? "Out of stock" : low ? "Low stock" : "In stock"}</StatusPill></td><td data-label="Branch">{product.branchName || "—"}</td><td data-label="Updated" className="muted">{formatDateShort(product.updatedAt)}</td><td data-label="Actions" className="actions-col">{canManage && <div className="row-actions"><button className="table-action" onClick={() => onEdit(toProduct(product))}>Edit</button><button className="table-action muted-action" onClick={() => onAdjust(toProduct(product))}>Adjust</button></div>}</td></tr>; })}</tbody></table></div>
           <div className="pagination-bar"><span>Showing {from}–{showCount} of {total} products</span><div className="pagination-controls"><button className="page-button" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹ Prev</button>{Array.from({ length: Math.min(totalPages, 5) }, (_, index) => index + 1).map((num) => <button key={num} className={`page-button ${num === page ? "active" : ""}`} onClick={() => setPage(num)}>{num}</button>)}<button className="page-button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next ›</button></div></div>

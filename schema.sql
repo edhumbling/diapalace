@@ -56,9 +56,17 @@ CREATE TABLE IF NOT EXISTS branches (
   id TEXT PRIMARY KEY,
   business_id TEXT NOT NULL REFERENCES businesses(id),
   name TEXT NOT NULL,
+  code TEXT NOT NULL DEFAULT '',
   location TEXT NOT NULL DEFAULT '',
   phone TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  email TEXT NOT NULL DEFAULT '',
+  region TEXT NOT NULL DEFAULT '',
+  city TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  digital_address TEXT NOT NULL DEFAULT '',
+  manager_id TEXT NOT NULL DEFAULT '',
+  deactivation_reason TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'deactivated', 'archived')),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -400,3 +408,92 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
 
 CREATE INDEX IF NOT EXISTS idx_notification_preferences_user
   ON notification_preferences (user_id, category);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL,
+  branch_id TEXT NOT NULL DEFAULT '',
+  user_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  module TEXT NOT NULL DEFAULT 'SYSTEM',
+  entity_type TEXT NOT NULL DEFAULT 'SYSTEM',
+  entity_id TEXT NOT NULL DEFAULT '',
+  old_values TEXT,
+  new_values TEXT,
+  reason TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  ip_address TEXT,
+  device_id TEXT,
+  session_id TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payment_methods (
+  name TEXT PRIMARY KEY,
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1))
+);
+
+INSERT OR IGNORE INTO payment_methods (name, enabled) VALUES
+  ('Cash', 1),
+  ('MTN MoMo', 1),
+  ('Telecel Cash', 1),
+  ('AirtelTigo Money', 1),
+  ('Card / POS', 1),
+  ('Bank transfer', 1);
+
+CREATE TABLE IF NOT EXISTS registers (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  branch_id TEXT NOT NULL REFERENCES branches(id),
+  name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (branch_id, name)
+);
+
+INSERT OR IGNORE INTO registers (id, business_id, branch_id, name, status)
+SELECT 'reg-' || id, business_id, id, 'Register 01', 'active'
+FROM branches;
+
+CREATE TABLE IF NOT EXISTS shifts (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  branch_id TEXT NOT NULL REFERENCES branches(id),
+  register_id TEXT NOT NULL REFERENCES registers(id),
+  cashier_id TEXT NOT NULL REFERENCES users(id),
+  opened_by_id TEXT NOT NULL REFERENCES users(id),
+  opening_cash REAL NOT NULL DEFAULT 0 CHECK (opening_cash >= 0),
+  opened_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  closed_at TEXT,
+  closed_by_id TEXT REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'CLOSED')),
+  notes TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS shift_closings (
+  id TEXT PRIMARY KEY,
+  submission_id TEXT NOT NULL UNIQUE,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  branch_id TEXT NOT NULL REFERENCES branches(id),
+  register_id TEXT NOT NULL REFERENCES registers(id),
+  shift_id TEXT NOT NULL REFERENCES shifts(id),
+  cashier_id TEXT NOT NULL REFERENCES users(id),
+  closed_by_id TEXT NOT NULL REFERENCES users(id),
+  opening_cash REAL NOT NULL DEFAULT 0,
+  total_sales REAL NOT NULL DEFAULT 0,
+  cash_refunds REAL NOT NULL DEFAULT 0,
+  expected_cash REAL NOT NULL DEFAULT 0,
+  counted_cash REAL NOT NULL DEFAULT 0,
+  cash_difference REAL NOT NULL DEFAULT 0,
+  breakdown TEXT NOT NULL DEFAULT '[]',
+  difference_reason TEXT NOT NULL DEFAULT '',
+  difference_explanation TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'CLOSED' CHECK (status IN ('CLOSED', 'SHORT', 'OVER')),
+  closed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  acknowledged_by_id TEXT REFERENCES users(id),
+  acknowledged_at TEXT,
+  acknowledged_note TEXT NOT NULL DEFAULT '',
+  reopened_at TEXT,
+  reopened_by_id TEXT REFERENCES users(id),
+  reopened_reason TEXT NOT NULL DEFAULT ''
+);

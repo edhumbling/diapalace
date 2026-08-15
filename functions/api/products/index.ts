@@ -1,4 +1,4 @@
-import { requireAuth } from "../../_lib/auth";
+import { requireAuth, logAudit } from "../../_lib/auth";
 
 type ProductListRow = {
   id: string;
@@ -89,11 +89,31 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
        LIMIT ? OFFSET ?`
     ).bind(...bindings, pageSize, offset).all<ProductListRow>();
 
-    const categoryRows = await db.prepare("SELECT DISTINCT c.name FROM products p JOIN categories c ON c.id = p.category_id WHERE p.business_id = ? ORDER BY c.name").bind(authOrRes.user.business_id).all<{ name: string }>();
+    // Summary cards reflect the selected branch scope (not the current page or
+    // the transient search/category/status filters), computed from real D1 data.
+    const branchPlaceholders = branchIds.map(() => "?").join(", ");
+    const summaryRow = await db
+      .prepare(
+        `SELECT COUNT(*) AS product_count,
+                SUM(CASE WHEN p.reorder_level > 0 AND p.stock_quantity <= p.reorder_level AND p.stock_quantity > 0 THEN 1 ELSE 0 END) AS low_stock,
+                COALESCE(SUM(p.selling_price * p.stock_quantity), 0) AS stock_value
+         FROM products p
+         WHERE p.business_id = ? AND p.branch_id IN (${branchPlaceholders})`
+      )
+      .bind(authOrRes.user.business_id, ...branchIds)
+      .first<{ product_count: number; low_stock: number; stock_value: number }>();
+
+    const categoryRows = await db
+      .prepare(
+        `SELECT DISTINCT c.name
+         FROM products p JOIN categories c ON c.id = p.category_id
+         WHERE p.business_id = ? AND p.branch_id IN (${branchPlaceholders})
+         ORDER BY c.name`
+      )
+      .bind(authOrRes.user.business_id, ...branchIds)
+      .all<{ name: string }>();
 
     const rows = items.results ?? [];
-    const totalValue = rows.reduce((sum, row) => sum + row.selling_price * row.stock_quantity, 0);
-    const lowStockCount = rows.filter((row) => row.reorder_level > 0 && row.stock_quantity <= row.reorder_level).length;
 
     return Response.json({
       items: rows.map((row) => ({
@@ -118,9 +138,9 @@ export const onRequestGet: PagesFunction<CloudflareEnv> = async (context) => {
       totalPages: Math.max(1, Math.ceil(total / pageSize)),
       categories: categoryRows.results ?? [],
       totals: {
-        productCount: total,
-        lowStock: lowStockCount,
-        stockValue: totalValue,
+        productCount: Number(summaryRow?.product_count || 0),
+        lowStock: Number(summaryRow?.low_stock || 0),
+        stockValue: Number(summaryRow?.stock_value || 0),
         categories: categoryRows.results?.length ?? 0,
       },
       branchFilter: requestedBranch === "all" || !requestedBranch ? "all" : requestedBranch,
@@ -136,8 +156,17 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const authOrRes = await requireAuth(context.request, context.env.diapalace_db);
     if (authOrRes instanceof Response) return authOrRes;
     if (!["owner", "manager", "stock_officer"].includes(authOrRes.user.role)) return Response.json({ error: "You are not allowed to create products." }, { status: 403 });
-    const body = await context.request.json() as { name?: string; description?: string; sku?: string; category?: string; price?: number; cost?: number; stock?: number; reorderAt?: number; unit?: string };
+    const body = await context.request.json() as { name?: string; description?: string; sku?: string; category?: string; price?: number; cost?: number; stock?: number; reorderAt?: number; unit?: string; branchId?: string };
     if (!body.name?.trim() || typeof body.price !== "number" || body.price < 0) return Response.json({ error: "Product name and a valid selling price are required" }, { status: 400 });
+
+    // Branch context: the product must belong to a branch the user is authorized for.
+    const requestedBranch = body.branchId?.trim();
+    const branchId = requestedBranch && authOrRes.branches.some((branch) => branch.id === requestedBranch)
+      ? requestedBranch
+      : authOrRes.branches[0]?.id || "";
+    if (!branchId) return Response.json({ error: "You are not assigned to any branch. Ask the owner to assign you to a branch." }, { status: 403 });
+    if (requestedBranch && !authOrRes.branches.some((branch) => branch.id === requestedBranch)) return Response.json({ error: "You do not have access to this branch." }, { status: 403 });
+
     const product = { id: `p-${crypto.randomUUID()}`, ...body };
     const category = body.category?.trim() || "Uncategorised";
     const categoryId = `cat-${category.toLowerCase().replaceAll(" ", "-")}`;
@@ -145,10 +174,11 @@ export const onRequestPost: PagesFunction<CloudflareEnv> = async (context) => {
     const createdAt = new Date().toISOString();
     await context.env.diapalace_db.batch([
       context.env.diapalace_db.prepare("INSERT OR IGNORE INTO categories (id, name) VALUES (?, ?)").bind(categoryId, category),
-      context.env.diapalace_db.prepare("INSERT INTO products (id, business_id, branch_id, name, description, sku, category_id, cost_price, selling_price, stock_quantity, reorder_level, unit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(product.id, authOrRes.user.business_id, authOrRes.branches[0]?.id || "", body.name.trim(), body.description?.trim() ?? "", sku, categoryId, body.cost ?? 0, body.price, body.stock ?? 0, body.reorderAt ?? 0, body.unit ?? "piece", createdAt, createdAt),
-      context.env.diapalace_db.prepare("INSERT INTO inventory_movements (id, business_id, branch_id, product_id, type, quantity, reference_type, note, created_at) VALUES (?, ?, ?, ?, 'opening', ?, 'product', 'Opening quantity', ?)").bind(crypto.randomUUID(), authOrRes.user.business_id, authOrRes.branches[0]?.id || "", product.id, body.stock ?? 0, createdAt),
+      context.env.diapalace_db.prepare("INSERT INTO products (id, business_id, branch_id, name, description, sku, category_id, cost_price, selling_price, stock_quantity, reorder_level, unit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(product.id, authOrRes.user.business_id, branchId, body.name.trim(), body.description?.trim() ?? "", sku, categoryId, body.cost ?? 0, body.price, body.stock ?? 0, body.reorderAt ?? 0, body.unit ?? "piece", createdAt, createdAt),
+      context.env.diapalace_db.prepare("INSERT INTO inventory_movements (id, business_id, branch_id, product_id, type, quantity, reference_type, note, created_at) VALUES (?, ?, ?, ?, 'opening', ?, 'product', 'Opening quantity', ?)").bind(crypto.randomUUID(), authOrRes.user.business_id, branchId, product.id, body.stock ?? 0, createdAt),
     ]);
-    return Response.json({ id: product.id, name: body.name.trim(), description: body.description?.trim() ?? "", sku, category, price: body.price, cost: body.cost ?? 0, stock: body.stock ?? 0, reorderAt: body.reorderAt ?? 0, unit: body.unit ?? "piece" });
+    await logAudit(context.env.diapalace_db, { business_id: authOrRes.user.business_id, user_id: authOrRes.user.id, user_name: authOrRes.user.full_name, branch_id: branchId, branch_name: authOrRes.branches.find((branch) => branch.id === branchId)?.name || "Branch", module: "INVENTORY", action: "PRODUCT_CREATED", entity_type: "PRODUCT", entity_id: product.id, new_values: { name: body.name.trim(), category, price: body.price, stock: body.stock ?? 0 }, reason: "Product added to inventory", description: `Created product '${body.name.trim()}' with ${body.stock ?? 0} opening stock.` });
+    return Response.json({ id: product.id, name: body.name.trim(), description: body.description?.trim() ?? "", sku, category, price: body.price, cost: body.cost ?? 0, stock: body.stock ?? 0, reorderAt: body.reorderAt ?? 0, unit: body.unit ?? "piece", branchId });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "Unable to create product" }, { status: 500 });
